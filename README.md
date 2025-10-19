@@ -109,3 +109,7 @@ Le projet est réalisé dans le cadre d’un **travail en équipe de 5 étudiant
 - 🔹 Système d’avis et de notation.  
 - 🔹 Notifications de rappel et promotions automatiques.  
 
+
+# rentease
+
+
