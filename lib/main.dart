@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:rentease/screens/login.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
 import 'screens/home_screen.dart';
+import 'package:path/path.dart'; // ⬅️ AJOUTEZ CE IMPORT
+import 'package:sqflite/sqflite.dart'; // ⬅️ AJOUTEZ CE IMPORT
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+// ⚠️ TEMPORAIRE - DÉCOMMENTEZ POUR SUPPRIMER L'ANCIENNE BASE
+  //await deleteDatabase(join(await getDatabasesPath(), 'rentease.db'));
   // Initialisation FFI pour Desktop
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux ||
@@ -63,7 +67,7 @@ class RenteaseApp extends StatelessWidget {
         // Utiliser Material 3 (plus récent)
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const LoginPage(),
     );
   }
 }
