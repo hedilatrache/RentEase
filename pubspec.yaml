@@ -14,6 +14,22 @@ dependencies:
   path: ^1.8.3
   image_picker: ^0.8.9
 
+  google_fonts: ^4.0.4
+
+  # Gestion d'état et navigation facile avec GetX
+  get: ^4.6.5
+
+  # Stockage local pour savoir si l'onboarding a déjà été vu
+  shared_preferences: ^2.1.1
+
+  # Gestion des assets et des images
+  flutter_svg: ^2.0.7  # si tu utilises des SVG pour tes images
+  provider: ^6.0.0
+  path_provider: ^2.0.0
+  crypto: ^3.0.0
+  flutter_native_splash: ^2.3.2
+  smooth_page_indicator: ^1.1.0
+
 
 
 
@@ -29,3 +45,15 @@ flutter:
   assets:
     - Assets/
 
+# 👇 Cette section configure ton splash screen !
+flutter_native_splash:
+  color: "#FFFFFF"          # Couleur d’arrière-plan claire
+  color_dark: "#272727"     # Couleur d’arrière-plan sombre
+  image: assets/logos/logo.png   # Ton logo affiché au lancement
+
+  android_12:
+    color: "#FFFFFF"
+    color_dark: "#272727"
+    image: assets/logos/logo.png
+
+  web: false

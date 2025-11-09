@@ -18,7 +18,7 @@ class DB {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE voiture(
@@ -102,13 +102,58 @@ class DB {
     return maps.isNotEmpty;
   }
 
+
+  // Authentifier un utilisateur
+  Future<User?> authenticateUser(String email, String password) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+    );
+
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Mettre à jour un utilisateur
+  Future<int> updateUser(User user) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
+  }
+
+  // Supprimer un utilisateur
+  Future<int> deleteUser(int id) async {
+    final db = await database;
+    return await db.delete(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Récupérer tous les utilisateurs (pour l'admin plus tard)
+  Future<List<User>> getAllUsers() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('users');
+    return List.generate(maps.length, (i) {
+      return User.fromMap(maps[i]);
+    });
+  }
+
   // Fermer la base de données
   Future<void> close() async {
     final db = await database;
     db.close();
   }
   //END GESTION UTILISATEUR
-
 
 
 
