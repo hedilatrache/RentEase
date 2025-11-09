@@ -1,6 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import '../models/user.dart';
+
 class DB {
   static Database? _db;
 
@@ -31,9 +33,91 @@ class DB {
             image TEXT
           )
         ''');
+        await db.execute('''
+      CREATE TABLE users(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nom TEXT NOT NULL,
+        prenom TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        telephone TEXT NOT NULL,
+        password TEXT NOT NULL,
+        date_inscription TEXT NOT NULL
+      )
+    ''');
+
+
       },
     );
   }
+
+  //GESTION UTULISATEUR
+  // Insérer un utilisateur
+  Future<int> insertUser(User user) async {
+    final db = await database;
+    try {
+      return await db.insert('users', user.toMap());
+    } catch (e) {
+      throw Exception('Erreur lors de l\'insertion: $e');
+    }
+  }
+
+  // Récupérer un utilisateur par email
+  Future<User?> getUserByEmail(String email) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Récupérer un utilisateur par ID
+  Future<User?> getUserById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // Vérifier si un email existe déjà
+  Future<bool> emailExists(String email) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+    return maps.isNotEmpty;
+  }
+
+  // Fermer la base de données
+  Future<void> close() async {
+    final db = await database;
+    db.close();
+  }
+  //END GESTION UTILISATEUR
+
+
+
+
+
+
+
+
+  //GESTION VOITURE
+
 
   // Ajouter une voiture
   static Future<void> addVoiture(Map<String, dynamic> voiture) async {
@@ -58,4 +142,8 @@ class DB {
     final db = await database;
     await db.update('voiture', voiture, where: 'id = ?', whereArgs: [id]);
   }
+  //ENDGESTION VOITURE
+
+
+
 }
