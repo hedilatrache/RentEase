@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../models/voiture.dart';
 import '../models/categorie.dart';
+import '../models/voiture.dart';
 import '../services/api_service.dart';
 
 class VoitureEditScreen extends StatefulWidget {
-  const VoitureEditScreen({super.key, required this.voiture});
   final Voiture voiture;
+  const VoitureEditScreen({super.key, required this.voiture});
 
   @override
   State<VoitureEditScreen> createState() => _VoitureEditScreenState();
@@ -13,169 +13,175 @@ class VoitureEditScreen extends StatefulWidget {
 
 class _VoitureEditScreenState extends State<VoitureEditScreen> {
   final _formKey = GlobalKey<FormState>();
-  final ApiService apiService = ApiService();
+  final ApiService api = ApiService();
 
-  late String marque;
-  late String modele;
-  late int annee;
-  late String immatriculation;
-  late String couleur;
-  late double prixParJour;
-  String? image;
+  late TextEditingController marqueController;
+  late TextEditingController modeleController;
+  late TextEditingController anneeController;
+  late TextEditingController immatriculationController;
+  late TextEditingController couleurController;
+  late TextEditingController prixController;
+  bool disponibilite = true;
   Categorie? selectedCategorie;
-  late List<Categorie> categories;
+  List<Categorie> categories = [];
 
-  final List<String> images = [
-    'assets/image1',
-    'assets/image2',
-    'assets/image3',
-    'assets/image4',
-  ];
-
-  // Couleurs
-  final Color primaryColor = const Color(0xFF7201FE);
-  final Color backgroundColor = const Color(0xFFD9B9FF);
+  final Color violet = const Color(0xFF7201FE);
+  final Color violetClair = const Color(0xFFD9B9FF);
+  final Color jaune = const Color(0xFFFFBB00);
 
   @override
   void initState() {
     super.initState();
-    final v = widget.voiture;
-
-    marque = v.marque;
-    modele = v.modele;
-    annee = v.annee;
-    immatriculation = v.immatriculation;
-    couleur = v.couleur;
-    prixParJour = v.prixParJour;
-    image = images.contains(v.image) ? v.image : images.first;
-
-    // Charger les catégories depuis le service
-    categories = apiService.categories;
-
-    // ✅ Trouver la catégorie correspondante par ID pour éviter l'erreur du dropdown
-    selectedCategorie = categories.firstWhere(
-          (c) => c.id == v.categorie.id,
-      orElse: () => categories.first,
-    );
+    marqueController = TextEditingController(text: widget.voiture.marque);
+    modeleController = TextEditingController(text: widget.voiture.modele);
+    anneeController = TextEditingController(text: widget.voiture.annee.toString());
+    immatriculationController = TextEditingController(text: widget.voiture.immatriculation);
+    couleurController = TextEditingController(text: widget.voiture.couleur);
+    prixController = TextEditingController(text: widget.voiture.prixParJour.toString());
+    disponibilite = widget.voiture.disponibilite;
+    loadCategories();
   }
 
-  void submit() {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  void loadCategories() async {
+    categories = await api.getCategories();
+    selectedCategorie = categories.firstWhere(
+          (c) => c.id == widget.voiture.categorie.id,
+      orElse: () => categories.first,
+    );
+    setState(() {});
+  }
 
-      final updatedVoiture = Voiture(
-        id: widget.voiture.id,
-        marque: marque,
-        modele: modele,
-        annee: annee,
-        immatriculation: immatriculation,
-        couleur: couleur,
-        prixParJour: prixParJour,
-        disponibilite: widget.voiture.disponibilite,
-        categorie: selectedCategorie!,
-        image: image!,
-      );
+  void save() async {
+    if (_formKey.currentState!.validate() && selectedCategorie != null) {
+      widget.voiture.marque = marqueController.text;
+      widget.voiture.modele = modeleController.text;
+      widget.voiture.annee = int.parse(anneeController.text);
+      widget.voiture.immatriculation = immatriculationController.text;
+      widget.voiture.couleur = couleurController.text;
+      widget.voiture.prixParJour = double.parse(prixController.text);
+      widget.voiture.disponibilite = disponibilite;
+      widget.voiture.categorie = selectedCategorie!;
 
-      apiService.editVoiture(updatedVoiture);
+      await api.editVoiture(widget.voiture);
       Navigator.pop(context, true);
     }
+  }
+
+  InputDecoration buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: violet),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: violet, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: violetClair, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      fillColor: Colors.white,
+      filled: true,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Modifier la voiture'),
-        backgroundColor: primaryColor,
-        centerTitle: true,
+        title: const Text('Modifier voiture'),
+        backgroundColor: violet,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
+        child: categories.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
           key: _formKey,
           child: ListView(
             children: [
-              buildTextField('Marque', marque, (v) => marque = v!),
-              buildTextField('Modèle', modele, (v) => modele = v!),
-              buildTextField('Année', annee.toString(), (v) => annee = int.parse(v!), isNumber: true),
-              buildTextField('Immatriculation', immatriculation, (v) => immatriculation = v!),
-              buildTextField('Couleur', couleur, (v) => couleur = v!),
-              buildTextField('Prix par jour', prixParJour.toString(), (v) => prixParJour = double.parse(v!), isNumber: true),
+              TextFormField(
+                controller: marqueController,
+                decoration: buildInputDecoration('Marque'),
+                style: const TextStyle(color: Colors.black),
+                validator: (v) => v!.isEmpty ? 'Champ requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: modeleController,
+                decoration: buildInputDecoration('Modèle'),
+                style: const TextStyle(color: Colors.black),
+                validator: (v) => v!.isEmpty ? 'Champ requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: anneeController,
+                decoration: buildInputDecoration('Année'),
+                style: const TextStyle(color: Colors.black),
+                keyboardType: TextInputType.number,
+                validator: (v) => v!.isEmpty ? 'Champ requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: immatriculationController,
+                decoration: buildInputDecoration('Immatriculation'),
+                style: const TextStyle(color: Colors.black),
+                validator: (v) => v!.isEmpty ? 'Champ requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: couleurController,
+                decoration: buildInputDecoration('Couleur'),
+                style: const TextStyle(color: Colors.black),
+                validator: (v) => v!.isEmpty ? 'Champ requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: prixController,
+                decoration: buildInputDecoration('Prix par jour'),
+                style: const TextStyle(color: Colors.black),
+                keyboardType: TextInputType.number,
+                validator: (v) => v!.isEmpty ? 'Champ requis' : null,
+              ),
               const SizedBox(height: 16),
               DropdownButtonFormField<Categorie>(
-                decoration: InputDecoration(
-                  labelText: 'Catégorie',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
                 value: selectedCategorie,
                 items: categories
                     .map((c) => DropdownMenuItem(
                   value: c,
-                  child: Text(c.nom),
+                  child: Text(c.nom, style: const TextStyle(color: Colors.black)),
                 ))
                     .toList(),
                 onChanged: (c) => setState(() => selectedCategorie = c),
-                validator: (v) => v == null ? 'Obligatoire' : null,
+                decoration: buildInputDecoration('Catégorie'),
+                dropdownColor: violetClair,
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Image',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                value: image,
-                items: images
-                    .map((img) => DropdownMenuItem(
-                  value: img,
-                  child: Text(img.split('/').last),
-                ))
-                    .toList(),
-                onChanged: (v) => setState(() => image = v),
-                validator: (v) => v == null ? 'Obligatoire' : null,
+              SwitchListTile(
+                title: const Text('Disponible', style: TextStyle(color: Colors.black)),
+                value: disponibilite,
+                onChanged: (val) => setState(() => disponibilite = val),
+                activeColor: violet,
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: violet,
+                  foregroundColor: jaune,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed: submit,
-                  child: const Text(
-                    'Modifier',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+                ),
+                child: const Text(
+                  'Enregistrer',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // Méthode pour créer les champs de texte stylés
-  Widget buildTextField(String label, String initialValue, Function(String?) onSaved, {bool isNumber = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
-        initialValue: initialValue,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-        validator: (v) => v!.isEmpty ? 'Obligatoire' : null,
-        onSaved: onSaved,
       ),
     );
   }

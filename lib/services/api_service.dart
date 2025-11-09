@@ -1,83 +1,79 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 import '../models/voiture.dart';
 import '../models/categorie.dart';
 
 class ApiService {
-  static final ApiService _instance = ApiService._internal();
-  factory ApiService() => _instance;
-  ApiService._internal();
+  static Database? _db;
 
-  List<Categorie> categories = [
-    Categorie(id: 1, nom: 'SUV', description: 'Sport Utility Vehicle'),
-    Categorie(id: 2, nom: 'Berline', description: 'Voiture berline'),
-  ];
-
-  List<Voiture> voitures = [
-    Voiture(
-      id: 1,
-      marque: 'Toyota',
-      modele: 'Corolla',
-      annee: 2022,
-      immatriculation: '123-ABC',
-      couleur: 'Blanc',
-      prixParJour: 6000,
-      disponibilite: true,
-      categorie: Categorie(id: 2, nom: 'Berline', description: 'Voiture berline'),
-      image: 'assets/image1.png',
-    ),
-
-    Voiture(
-      id: 2,
-      marque: 'Toyota',
-      modele: 'Corolla',
-      annee: 2022,
-      immatriculation: '123-ABC',
-      couleur: 'Blanc',
-      prixParJour: 5000,
-      disponibilite: true,
-      categorie: Categorie(id: 2, nom: 'Berline', description: 'Voiture berline'),
-      image: 'assets/image2.png',
-    ),
-
-    Voiture(
-      id: 3,
-      marque: 'Toyota',
-      modele: 'Corolla',
-      annee: 2022,
-      immatriculation: '123-ABC',
-      couleur: 'Blanc',
-      prixParJour: 2000,
-      disponibilite: true,
-      categorie: Categorie(id: 2, nom: 'Berline', description: 'Voiture berline'),
-      image: 'assets/image3.png',
-    ),
-
-    Voiture(
-      id: 4,
-      marque: 'Toyota',
-      modele: 'Corolla',
-      annee: 2022,
-      immatriculation: '123-ABC',
-      couleur: 'Blanc',
-      prixParJour: 1900,
-      disponibilite: true,
-      categorie: Categorie(id: 2, nom: 'Berline', description: 'Voiture berline'),
-      image: 'assets/image4.png',
-    ),
-  ];
-
-  Future<List<Voiture>> getVoitures() async => voitures;
-
-  Future<void> addVoiture(Voiture v) async {
-    v.id = voitures.length + 1;
-    voitures.add(v);
+  Future<Database> get database async {
+    if (_db != null) return _db!;
+    _db = await _initDb();
+    return _db!;
   }
 
-  Future<void> deleteVoiture(int id) async {
-    voitures.removeWhere((v) => v.id == id);
+  Future<Database> _initDb() async {
+    String path = join(await getDatabasesPath(), 'rentease.db');
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE categorie(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE voiture(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            marque TEXT,
+            modele TEXT,
+            annee INTEGER,
+            immatriculation TEXT,
+            couleur TEXT,
+            prixParJour REAL,
+            disponibilite INTEGER,
+            categorieId INTEGER,
+            image TEXT,
+            FOREIGN KEY (categorieId) REFERENCES categorie(id)
+          )
+        ''');
+        await db.insert('categorie', {'nom': 'SUV'});
+        await db.insert('categorie', {'nom': 'Berline'});
+        await db.insert('categorie', {'nom': 'Citadine'});
+      },
+    );
+  }
+
+  Future<List<Categorie>> getCategories() async {
+    final db = await database;
+    final res = await db.query('categorie');
+    return res.map((c) => Categorie(id: c['id'] as int, nom: c['nom'] as String)).toList();
+  }
+
+  Future<List<Voiture>> getVoitures() async {
+    final db = await database;
+    final res = await db.rawQuery('''
+      SELECT v.*, c.nom as catNom
+      FROM voiture v
+      LEFT JOIN categorie c ON v.categorieId = c.id
+    ''');
+    return res.map((v) => Voiture.fromMap(v)).toList();
+  }
+
+  Future<void> addVoiture(Voiture voiture) async {
+    final db = await database;
+    await db.insert('voiture', voiture.toMap());
   }
 
   Future<void> editVoiture(Voiture voiture) async {
-    int index = voitures.indexWhere((v) => v.id == voiture.id);
-    if (index != -1) voitures[index] = voiture;
+    final db = await database;
+    await db.update('voiture', voiture.toMap(), where: 'id = ?', whereArgs: [voiture.id]);
+  }
+
+  Future<void> deleteVoiture(int id) async {
+    final db = await database;
+    await db.delete('voiture', where: 'id = ?', whereArgs: [id]);
   }
 }
