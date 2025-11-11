@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rentease/screens/inscription.dart';
 import 'package:rentease/database/database_helper.dart';
-import 'package:rentease/screens/home_screen.dart';
-
 import '../services/session_manager.dart';
+import 'forgot_password_screen.dart';
 import 'main_screen.dart';
 
 class LoginPage extends StatefulWidget {
@@ -252,10 +251,15 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
 
-        // Forget Password?
+        // Forget Password? - ✅ MODIFIÉ POUR NAVIGATION DIRECTE
         GestureDetector(
           onTap: () {
-            _showForgotPasswordDialog();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ForgotPasswordScreen(),
+              ),
+            );
+
           },
           child: Text(
             'Forget Password?',
@@ -269,7 +273,6 @@ class _LoginPageState extends State<LoginPage> {
       ],
     );
   }
-
   Widget _buildSignInButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,

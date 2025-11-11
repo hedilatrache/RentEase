@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 
 import '../models/entretien.dart';
 import '../models/garage.dart';
+import '../models/reset_token.dart';
 import '../models/user.dart';
 
 class DB {
@@ -21,7 +22,7 @@ class DB {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 5, // Augmenter la version
+      version: 8 , // Augmenter la version
       onCreate: (db, version) async {
         // Table voiture
         await db.execute('''
@@ -83,6 +84,21 @@ class DB {
             FOREIGN KEY (garage_id) REFERENCES garage(id) ON DELETE CASCADE
           )
         ''');
+        await db.execute('''
+  CREATE TABLE reset_tokens(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    is_used INTEGER DEFAULT 0,
+    FOREIGN KEY (email) REFERENCES users (email)
+  )
+''');
+
+// Créer un index pour les recherches par token
+        await db.execute('CREATE INDEX idx_reset_tokens_token ON reset_tokens(token)');
+        await db.execute('CREATE INDEX idx_reset_tokens_email ON reset_tokens(email)');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 3) {
@@ -116,6 +132,9 @@ class DB {
               FOREIGN KEY (garage_id) REFERENCES garage(id) ON DELETE CASCADE
             )
           ''');
+          // Dans la méthode _createDatabase, ajoutez cette table :
+
+
         }
       },
     );
@@ -410,6 +429,59 @@ class DB {
     await db.update('voiture', voiture, where: 'id = ?', whereArgs: [id]);
   }
   //ENDGESTION VOITURE
+
+
+// Méthodes pour la gestion des tokens de reset
+  Future<int> insertResetToken(ResetToken token) async {
+    final db = await database;
+    return await db.insert('reset_tokens', token.toMap());
+  }
+
+  Future<ResetToken?> getResetToken(String token) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'reset_tokens',
+      where: 'token = ?',
+      whereArgs: [token],
+    );
+
+    if (maps.isNotEmpty) {
+      return ResetToken.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<void> markTokenAsUsed(String token) async {
+    final db = await database;
+    await db.update(
+      'reset_tokens',
+      {'is_used': 1},
+      where: 'token = ?',
+      whereArgs: [token],
+    );
+  }
+
+  Future<void> cleanupExpiredTokens() async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    await db.delete(
+      'reset_tokens',
+      where: 'expires_at < ? OR is_used = 1',
+      whereArgs: [now],
+    );
+  }
+
+
+
+  Future<int> updatePassword(String email, String newPassword) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      {'password': newPassword},
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+  }
 
 
 
