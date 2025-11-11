@@ -47,4 +47,24 @@ class User {
   String toString() {
     return 'User{id: $id, nom: $nom, prenom: $prenom, email: $email, telephone: $telephone, dateInscription: $dateInscription}';
   }
+  // Ajoutez cette méthode
+  User copyWith({
+    int? id,
+    String? nom,
+    String? prenom,
+    String? email,
+    String? telephone,
+    String? password,
+    DateTime? dateInscription,
+  }) {
+    return User(
+      id: id ?? this.id,
+      nom: nom ?? this.nom,
+      prenom: prenom ?? this.prenom,
+      email: email ?? this.email,
+      telephone: telephone ?? this.telephone,
+      password: password ?? this.password,
+      dateInscription: dateInscription ?? this.dateInscription,
+    );
+  }
 }
