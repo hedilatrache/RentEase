@@ -272,7 +272,6 @@ class DB {
     ''');
   }
 
-
   //GESTION UTULISATEUR
   // Insérer un utilisateur
   Future<int> insertUser(User user) async {

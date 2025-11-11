@@ -30,10 +30,26 @@ class _VoitureAddScreenState extends State<VoitureAddScreen> {
   final Color violetClair = const Color(0xFFD9B9FF);
   final Color jaune = const Color(0xFFFFBB00);
 
+  // Liste des images locales disponibles
+  final List<String> localImages = [
+    'Assets/image1.png',
+    'Assets/image2.png',
+    'Assets/image3.png',
+    'Assets/image4.png',
+    'Assets/image5.png',
+    'Assets/image6.png',
+    'Assets/image7.png',
+    'Assets/image8.png',
+    'Assets/image9.png',
+    'Assets/image10.png',
+
+  ];
+
   @override
   void initState() {
     super.initState();
     loadCategories();
+    if (localImages.isNotEmpty) image = localImages[0];
   }
 
   void loadCategories() async {
@@ -81,7 +97,7 @@ class _VoitureAddScreenState extends State<VoitureAddScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // fond blanc
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Ajouter une voiture'),
         backgroundColor: violet,
@@ -157,11 +173,33 @@ class _VoitureAddScreenState extends State<VoitureAddScreen> {
                 activeColor: violet,
               ),
               const SizedBox(height: 20),
-              TextFormField(
-                decoration: buildInputDecoration('Image (chemin local)'),
-                style: TextStyle(color: Colors.black),
-                onSaved: (v) => image = v ?? '',
+
+              // Sélecteur d'image locale
+              DropdownButtonFormField<String>(
+                value: image,
+                items: localImages
+                    .map((img) => DropdownMenuItem(
+                  value: img,
+                  child: Text(img.split('/').last),
+                ))
+                    .toList(),
+                onChanged: (v) => setState(() => image = v!),
+                decoration: buildInputDecoration('Image locale'),
               ),
+
+              const SizedBox(height: 16),
+
+              // Prévisualisation de l'image
+              if (image.isNotEmpty)
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: violetClair),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.asset(image, fit: BoxFit.cover),
+                ),
+
               const SizedBox(height: 30),
               ElevatedButton(
                 onPressed: saveVoiture,
