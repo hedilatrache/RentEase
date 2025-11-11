@@ -4,6 +4,8 @@ import 'package:rentease/models/user.dart';
 import 'package:rentease/database/database_helper.dart';
 import 'package:rentease/screens/login.dart';
 
+import '../services/session_manager.dart';
+
 class ProfilePage extends StatefulWidget {
   final User user;
 
@@ -473,7 +475,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _logout() {
+  void _logout() async {
+    // Effacer la session
+    await SessionManager.logout();
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginPage()),
           (route) => false,

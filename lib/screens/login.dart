@@ -4,6 +4,7 @@ import 'package:rentease/screens/inscription.dart';
 import 'package:rentease/database/database_helper.dart';
 import 'package:rentease/screens/home_screen.dart';
 
+import '../services/session_manager.dart';
 import 'main_screen.dart';
 
 class LoginPage extends StatefulWidget {
@@ -362,13 +363,19 @@ class _LoginPageState extends State<LoginPage> {
       final user = await _databaseHelper.authenticateUser(email, password);
 
       if (user != null) {
+        // ✅ SAUVEGARDER LA SESSION
+        await SessionManager.saveLoginState(
+          rememberMe: _rememberMe,
+          userId: user.id!,
+          userEmail: user.email,
+        );
+
         _showSuccessSnackbar('Success', 'Welcome back, ${user.prenom}!');
 
         await Future.delayed(const Duration(milliseconds: 1500));
-
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
+            builder: (context) => MainScreen(user: user), // ✅ user est passé
           ),
         );
       } else {
@@ -382,7 +389,6 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
-
   void _showForgotPasswordDialog() {
     showDialog(
       context: context,

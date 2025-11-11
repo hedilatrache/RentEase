@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../models/user.dart';
 import 'entretien_list_screen.dart';
 import 'garage_list_screen.dart';
 import 'home_screen.dart';
+import 'profile.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  final User? user;
+
+  const MainScreen({Key? key, this.user}) : super(key: key);
 
   @override
   _MainScreenState createState() => _MainScreenState();
@@ -19,18 +23,60 @@ class _MainScreenState extends State<MainScreen> {
 
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(), // Écran d'accueil
-    const EntretienListScreen(), // Écran des entretiens
-    const GarageListScreen(), // Écran des garages
-    const ProfileScreen(), // Écran profil
-  ];
+  late List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeScreens();
+  }
+
+  void _initializeScreens() {
+    _screens = [
+      // ✅ CORRIGÉ : Passez l'utilisateur à tous les écrans qui en ont besoin
+      HomeScreen(user: widget.user),
+      EntretienListScreen(user: widget.user), // ⬅️ PLUS de const, et passez user
+      const GarageListScreen(), // Si GarageListScreen n'a pas besoin de user
+      // ✅ CORRIGÉ : Gestion du user nullable
+      if (widget.user != null)
+        ProfilePage(user: widget.user!)
+      else
+        _buildErrorScreen(), // Écran de fallback si user est null
+    ];
+  }
+
+  // Écran de fallback si user est null
+  Widget _buildErrorScreen() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Erreur'),
+        backgroundColor: Colors.red,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 60, color: Colors.red),
+            SizedBox(height: 16),
+            Text(
+              'Utilisateur non connecté',
+              style: TextStyle(fontSize: 18, color: Colors.red),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Veuillez vous reconnecter',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: grisClair,
-      // SUPPRIMEZ L'APPBAR D'ICI ⬇️
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -72,67 +118,6 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.person),
               label: 'Profil',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Écran profil temporaire
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      // AJOUTEZ UNE APPBar ICI ⬇️
-      appBar: AppBar(
-        title: const Text(
-          'Mon Profil',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: const Color(0xFF7201FE),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: const Color(0xFF7201FE),
-                borderRadius: BorderRadius.circular(60),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 60,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Mon Profil',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF7201FE),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Fonctionnalité à venir',
-              style: TextStyle(
-                color: Colors.grey,
-              ),
             ),
           ],
         ),

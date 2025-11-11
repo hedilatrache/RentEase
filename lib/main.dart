@@ -1,16 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rentease/screens/login.dart';
+import 'package:rentease/screens/main_screen.dart';
+import 'package:rentease/services/session_manager.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'database/database_helper.dart';
+import 'models/user.dart';
 import 'screens/home_screen.dart';
-import 'package:path/path.dart'; // ⬅️ AJOUTEZ CE IMPORT
-import 'package:sqflite/sqflite.dart'; // ⬅️ AJOUTEZ CE IMPORT
+import 'screens/entretien_list_screen.dart';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-
-// ⚠️ TEMPORAIRE - DÉCOMMENTEZ POUR SUPPRIMER L'ANCIENNE BASE
+  // ⚠️ TEMPORAIRE - DÉCOMMENTEZ POUR SUPPRIMER L'ANCIENNE BASE
   // await deleteDatabase(join(await getDatabasesPath(), 'rentease.db'));
 
   // Initialisation FFI pour Desktop
@@ -21,11 +25,34 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  runApp(const RenteaseApp());
+  // ✅ VÉRIFICATION DE LA SESSION AU DÉMARRAGE
+  final bool isLoggedIn = await SessionManager.isLoggedIn();
+  User? currentUser;
+
+  if (isLoggedIn) {
+    // Récupérer l'utilisateur depuis la base de données
+    final db = DB();
+    final userId = await SessionManager.getUserId();
+    if (userId != null) {
+      currentUser = await db.getUserById(userId);
+    }
+  }
+
+  runApp(RenteaseApp(
+    isLoggedIn: isLoggedIn,
+    currentUser: currentUser,
+  ));
 }
 
 class RenteaseApp extends StatelessWidget {
-  const RenteaseApp({super.key});
+  final bool isLoggedIn;
+  final User? currentUser;
+
+  const RenteaseApp({
+    super.key,
+    required this.isLoggedIn,
+    this.currentUser
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +107,11 @@ class RenteaseApp extends StatelessWidget {
         // Utiliser Material 3 (plus récent)
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      // ✅ REDIRECTION AUTOMATIQUE SI DÉJÀ CONNECTÉ
+      // ✅ REDIRECTION AUTOMATIQUE SI DÉJÀ CONNECTÉ
+      home: isLoggedIn && currentUser != null
+          ? MainScreen(user: currentUser) // ⬅️ UTILISEZ MainScreen AU LIEU DE EntretienListScreen
+          : const LoginPage(),
     );
   }
 }

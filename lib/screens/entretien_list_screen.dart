@@ -3,10 +3,15 @@ import 'package:rentease/models/entretien.dart';
 import 'package:rentease/services/entretien_service.dart';
 import 'package:rentease/database/database_helper.dart';
 
+import '../models/user.dart';
 import 'add_entretien_screen.dart';
 
 class EntretienListScreen extends StatefulWidget {
-  const EntretienListScreen({Key? key}) : super(key: key);
+
+  final User? user; // ⬅️ AJOUTEZ CE PARAMÈTRE
+
+  const EntretienListScreen({Key? key, this.user}) : super(key: key); // ⬅️ MODIFIEZ LE CONSTRUCTEUR
+
 
   @override
   _EntretienListScreenState createState() => _EntretienListScreenState();
@@ -28,6 +33,10 @@ class _EntretienListScreenState extends State<EntretienListScreen> {
   void initState() {
     super.initState();
     _initDatabase();
+    // ✅ OPTIONNEL: Afficher les infos de l'utilisateur connecté
+    if (widget.user != null) {
+      print('Utilisateur connecté: ${widget.user!.prenom} ${widget.user!.nom}');
+    }
   }
 
   Future<void> _initDatabase() async {
