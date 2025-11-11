@@ -4,6 +4,8 @@ import 'package:rentease/screens/inscription.dart';
 import 'package:rentease/database/database_helper.dart';
 import 'package:rentease/screens/home_screen.dart';
 
+import 'main_screen.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
 
@@ -364,13 +366,11 @@ class _LoginPageState extends State<LoginPage> {
 
         await Future.delayed(const Duration(milliseconds: 1500));
 
-        // Dans la méthode _signIn, modifiez la navigation :
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => HomeScreen(user: user), // Passez l'utilisateur
+            builder: (context) => const HomeScreen(),
           ),
         );
-
       } else {
         _showErrorSnackbar('Error', 'Invalid email or password');
       }

@@ -39,9 +39,12 @@ class ApiService {
             FOREIGN KEY (categorieId) REFERENCES categorie(id)
           )
         ''');
+        await db.insert('categorie', {'nom': 'Sportive'});
+        await db.insert('categorie', {'nom': 'Familiale'});
+        await db.insert('categorie', {'nom': 'Luxe'});
+        await db.insert('categorie', {'nom': 'Cabriolet'});
         await db.insert('categorie', {'nom': 'SUV'});
-        await db.insert('categorie', {'nom': 'Berline'});
-        await db.insert('categorie', {'nom': 'Citadine'});
+
       },
     );
   }

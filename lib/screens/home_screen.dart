@@ -46,7 +46,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void _filterVoitures(String query) {
     setState(() {
       _isSearching = query.isNotEmpty;
-
       if (query.isEmpty) {
         filteredVoitures = allVoitures;
       } else {
@@ -54,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           final marque = voiture.marque.toLowerCase();
           final modele = voiture.modele.toLowerCase();
           final searchLower = query.toLowerCase();
-
           return marque.contains(searchLower) || modele.contains(searchLower);
         }).toList();
       }
@@ -72,26 +70,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void loadData() async {
     final categoriesData = await api.getCategories();
     final voituresData = await api.getVoitures();
-
     setState(() {
       categories = categoriesData;
       allVoitures = voituresData;
       filteredVoitures = voituresData;
     });
-
-    // TabController : Toutes + Catégories
     _tabController = TabController(
-      length: categories.length + 1, // +1 pour "Toutes"
+      length: categories.length + 1,
       vsync: this,
     );
   }
 
   List<Voiture> getVoituresByCategory(int categoryIndex) {
     final voituresToUse = _isSearching ? filteredVoitures : allVoitures;
-
-    if (categoryIndex == 0) {
-      return voituresToUse; // Index 0 = Toutes les voitures
-    }
+    if (categoryIndex == 0) return voituresToUse;
     final category = categories[categoryIndex - 1];
     return voituresToUse.where((voiture) => voiture.categorie.id == category.id).toList();
   }
@@ -152,10 +144,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ? _buildSearchField()
             : const Text(
           'RentEase',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         backgroundColor: violet,
         foregroundColor: Colors.white,
@@ -165,19 +154,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // Barre de recherche (seulement quand on ne recherche pas dans l'AppBar)
           if (!_isSearching) _buildSearchBar(),
-
-          // Contenu principal
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
                 _buildAllCarsTab(),
-                ...categories.map((category) {
-                  return _buildCategoryTab(category);
-                }).toList(),
+                ...categories.map((category) => _buildCategoryTab(category)).toList(),
               ],
+            ),
+          ),
+
+          // Bouton placé juste au-dessus de la TabBar
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: ElevatedButton(
+              onPressed: navigateToAdd,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: jaune,
+                foregroundColor: violet,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('Ajouter une voiture'),
             ),
           ),
 
@@ -213,23 +214,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           },
           icon: const Icon(Icons.search),
           tooltip: 'Rechercher',
-        ),
-        IconButton(
-          onPressed: navigateToAdd,
-          icon: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: jaune,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: Icon(
-              Icons.add,
-              color: violet,
-              size: 20,
-            ),
-          ),
-          tooltip: 'Ajouter une voiture',
         ),
         const SizedBox(width: 8),
       ];
@@ -305,121 +289,79 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildBottomTabBar() {
     return Container(
-      decoration: BoxDecoration(
-        color: violet,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      color: violet,
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicator: BoxDecoration(
-                color: jaune,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              labelColor: violet,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.normal,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              tabs: [
-                const Tab(
-                  icon: Icon(Icons.all_inclusive, size: 18),
-                  text: 'Toutes',
-                ),
-                ...categories.map((category) {
-                  IconData icon;
-                  switch (category.nom.toLowerCase()) {
-                    case 'economique':
-                      icon = Icons.attach_money;
-                      break;
-                    case 'luxe':
-                      icon = Icons.diamond_outlined;
-                      break;
-                    case 'suv':
-                      icon = Icons.local_shipping;
-                      break;
-                    case 'berline':
-                      icon = Icons.directions_car;
-                      break;
-                    case 'citadine':
-                      icon = Icons.electric_car;
-                      break;
-                    default:
-                      icon = Icons.directions_car;
-                  }
-
-                  return Tab(
-                    icon: Icon(icon, size: 18),
-                    text: category.nom,
-                  );
-                }).toList(),
-              ],
-            ),
-            const SizedBox(height: 4),
+        child: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          indicator: BoxDecoration(
+            color: jaune,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelColor: violet,
+          unselectedLabelColor: Colors.white70,
+          tabs: [
+            const Tab(icon: Icon(Icons.all_inclusive, size: 18), text: 'Toutes'),
+            ...categories.map((category) {
+              return Tab(
+                icon: Icon(_getIconForCategory(category), size: 18),
+                text: category.nom,
+              );
+            }).toList(),
           ],
         ),
       ),
     );
   }
 
+  IconData _getIconForCategory(Categorie category) {
+    switch (category.nom.toLowerCase()) {
+      case 'economique':
+        return Icons.attach_money;
+      case 'luxe':
+        return Icons.diamond_outlined;
+      case 'suv':
+        return Icons.local_shipping;
+      case 'berline':
+        return Icons.directions_car;
+      case 'citadine':
+        return Icons.electric_car;
+      default:
+        return Icons.directions_car;
+    }
+  }
+
   Widget _buildAllCarsTab() {
     final voituresToShow = _isSearching ? filteredVoitures : allVoitures;
-
     if (voituresToShow.isEmpty) {
       return _buildEmptyState(
         icon: Icons.car_rental,
-        message: _isSearching
-            ? 'Aucune voiture trouvée'
-            : 'Aucune voiture disponible',
+        message: _isSearching ? 'Aucune voiture trouvée' : 'Aucune voiture disponible',
         subtitle: _isSearching
             ? 'Aucun résultat pour "${_searchController.text}"'
-            : 'Ajoutez votre première voiture avec le bouton + en haut !',
+            : 'Ajoutez votre première voiture avec le bouton + !',
       );
     }
-
     return _buildVoituresGrid(voituresToShow);
   }
 
   Widget _buildCategoryTab(Categorie category) {
     final categoryVoitures = getVoituresByCategory(categories.indexOf(category) + 1);
-
     if (categoryVoitures.isEmpty) {
       return _buildEmptyState(
         icon: Icons.directions_car_outlined,
-        message: _isSearching
-            ? 'Aucune voiture trouvée dans ${category.nom}'
-            : 'Aucune voiture dans ${category.nom}',
+        message: _isSearching ? 'Aucune voiture trouvée dans ${category.nom}' : 'Aucune voiture dans ${category.nom}',
         subtitle: _isSearching
             ? 'Aucun résultat pour "${_searchController.text}" dans ${category.nom}'
             : 'Ajoutez une voiture de type ${category.nom}',
       );
     }
-
     return _buildVoituresGrid(categoryVoitures);
   }
 
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String message,
-    required String subtitle,
-  }) {
+  Widget _buildEmptyState({required IconData icon, required String message, required String subtitle}) {
     return SingleChildScrollView(
       child: Container(
         height: MediaQuery.of(context).size.height * 0.7,
@@ -427,19 +369,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 60,
-                color: violetClair,
-              ),
+              Icon(icon, size: 60, color: violetClair),
               const SizedBox(height: 16),
               Text(
                 message,
-                style: TextStyle(
-                  color: violet,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: violet, fontSize: 16, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -447,10 +381,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Text(
                   subtitle,
-                  style: TextStyle(
-                    color: violet.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: violet.withOpacity(0.7), fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -458,10 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _clearSearch,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: violet,
-                    foregroundColor: jaune,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: violet, foregroundColor: jaune),
                   child: const Text('Effacer la recherche'),
                 ),
               ],
