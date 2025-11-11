@@ -368,7 +368,7 @@ class _LoginPageState extends State<LoginPage> {
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => const MainScreen(), // ← NOUVELLE REDIRECTION
+            builder: (context) => const HomeScreen(),
           ),
         );
       } else {
