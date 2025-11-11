@@ -18,7 +18,7 @@ class DB {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE voiture(

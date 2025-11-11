@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/categorie.dart';
 import '../models/voiture.dart';
+import '../models/categorie.dart';
 import '../services/api_service.dart';
 
 class VoitureEditScreen extends StatefulWidget {
@@ -21,9 +21,29 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
   late TextEditingController immatriculationController;
   late TextEditingController couleurController;
   late TextEditingController prixController;
+
   bool disponibilite = true;
   Categorie? selectedCategorie;
   List<Categorie> categories = [];
+
+  // Liste d'images prédéfinies (assets ou URLs)
+  Map<String, String> imagesMap = {
+    'Voiture 1':   'Assets/image1.png',
+    'Voiture 2':   'Assets/image2.png',
+    'Voiture 3':   'Assets/image3.png',
+    'Voiture 4':   'Assets/image4.png',
+    'Voiture 5':   'Assets/image5.png',
+    'Voiture 6':   'Assets/image6.png',
+    'Voiture 7':   'Assets/image7.png',
+    'Voiture 8':   'Assets/image8.png',
+    'Voiture 9':   'Assets/image9.png',
+    'Voiture 10':  'Assets/image10.png',
+
+
+  };
+
+
+  String? selectedImage;
 
   final Color violet = const Color(0xFF7201FE);
   final Color violetClair = const Color(0xFFD9B9FF);
@@ -39,6 +59,7 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
     couleurController = TextEditingController(text: widget.voiture.couleur);
     prixController = TextEditingController(text: widget.voiture.prixParJour.toString());
     disponibilite = widget.voiture.disponibilite;
+    selectedImage = widget.voiture.image;
     loadCategories();
   }
 
@@ -52,7 +73,7 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
   }
 
   void save() async {
-    if (_formKey.currentState!.validate() && selectedCategorie != null) {
+    if (_formKey.currentState!.validate() && selectedCategorie != null && selectedImage != null) {
       widget.voiture.marque = marqueController.text;
       widget.voiture.modele = modeleController.text;
       widget.voiture.annee = int.parse(anneeController.text);
@@ -61,6 +82,7 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
       widget.voiture.prixParJour = double.parse(prixController.text);
       widget.voiture.disponibilite = disponibilite;
       widget.voiture.categorie = selectedCategorie!;
+      widget.voiture.image = selectedImage!;
 
       await api.editVoiture(widget.voiture);
       Navigator.pop(context, true);
@@ -79,15 +101,38 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
         borderSide: BorderSide(color: violetClair, width: 1.5),
         borderRadius: BorderRadius.circular(8),
       ),
-      fillColor: Colors.white,
       filled: true,
+      fillColor: Colors.white,
     );
+  }
+
+  Widget buildImagePreview() {
+    if (selectedImage == null || selectedImage!.isEmpty) return const SizedBox.shrink();
+
+    if (selectedImage!.startsWith('http')) {
+      return Image.network(
+        selectedImage!,
+        height: 150,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(child: Text('Image non disponible'));
+        },
+      );
+    } else {
+      return Image.asset(
+        selectedImage!,
+        height: 150,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(child: Text('Image non trouvée'));
+        },
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Modifier voiture'),
         backgroundColor: violet,
@@ -103,21 +148,18 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
               TextFormField(
                 controller: marqueController,
                 decoration: buildInputDecoration('Marque'),
-                style: const TextStyle(color: Colors.black),
                 validator: (v) => v!.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: modeleController,
                 decoration: buildInputDecoration('Modèle'),
-                style: const TextStyle(color: Colors.black),
                 validator: (v) => v!.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: anneeController,
                 decoration: buildInputDecoration('Année'),
-                style: const TextStyle(color: Colors.black),
                 keyboardType: TextInputType.number,
                 validator: (v) => v!.isEmpty ? 'Champ requis' : null,
               ),
@@ -125,21 +167,18 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
               TextFormField(
                 controller: immatriculationController,
                 decoration: buildInputDecoration('Immatriculation'),
-                style: const TextStyle(color: Colors.black),
                 validator: (v) => v!.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: couleurController,
                 decoration: buildInputDecoration('Couleur'),
-                style: const TextStyle(color: Colors.black),
                 validator: (v) => v!.isEmpty ? 'Champ requis' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: prixController,
                 decoration: buildInputDecoration('Prix par jour'),
-                style: const TextStyle(color: Colors.black),
                 keyboardType: TextInputType.number,
                 validator: (v) => v!.isEmpty ? 'Champ requis' : null,
               ),
@@ -149,7 +188,7 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
                 items: categories
                     .map((c) => DropdownMenuItem(
                   value: c,
-                  child: Text(c.nom, style: const TextStyle(color: Colors.black)),
+                  child: Text(c.nom),
                 ))
                     .toList(),
                 onChanged: (c) => setState(() => selectedCategorie = c),
@@ -158,11 +197,27 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Disponible', style: TextStyle(color: Colors.black)),
+                title: const Text('Disponible'),
                 value: disponibilite,
                 onChanged: (val) => setState(() => disponibilite = val),
                 activeColor: violet,
               ),
+              const SizedBox(height: 16),
+              Text('Choisir une image', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: selectedImage,
+                items: imagesMap.entries
+                    .map((e) => DropdownMenuItem(
+                  value: e.value,
+                  child: Text(e.key),
+                ))
+                    .toList(),
+                onChanged: (val) => setState(() => selectedImage = val),
+                decoration: buildInputDecoration('Image'),
+              ),
+              const SizedBox(height: 16),
+              buildImagePreview(),
               const SizedBox(height: 30),
               ElevatedButton(
                 onPressed: save,
