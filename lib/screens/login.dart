@@ -4,6 +4,8 @@ import 'package:rentease/screens/inscription.dart';
 import 'package:rentease/database/database_helper.dart';
 import 'package:rentease/screens/home_screen.dart';
 
+import 'main_screen.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
 
@@ -366,7 +368,7 @@ class _LoginPageState extends State<LoginPage> {
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
+            builder: (context) => const MainScreen(), // ← NOUVELLE REDIRECTION
           ),
         );
       } else {
