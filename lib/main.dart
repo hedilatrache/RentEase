@@ -60,11 +60,22 @@ class RenteaseApp extends StatelessWidget {
         // Bouton flottant
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(0xFF7201FE),
-          foregroundColor: Color(0xFFFFBB00),
+          foregroundColor: Colors.white,
         ),
 
         // Scaffold
         scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+
+        // Boutons
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF7201FE),
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
 
         // Utiliser Material 3 (plus récent)
         useMaterial3: true,
