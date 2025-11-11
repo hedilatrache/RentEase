@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:rentease/screens/profile.dart';
+import '../models/user.dart';
 import '../models/voiture.dart';
 import '../models/categorie.dart';
 import '../services/api_service.dart';
@@ -6,8 +8,11 @@ import '../widgets/voiture_card.dart';
 import 'voiture_add_screen.dart';
 import 'voiture_edit_screen.dart';
 
+
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final User? user;
+
+  const HomeScreen({super.key, this.user});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -107,6 +112,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (result == true) loadData();
   }
 
+  // ⬅️ AJOUTEZ CETTE MÉTHODE POUR LA NAVIGATION VERS LE PROFIL
+  void navigateToProfile() {
+    if (widget.user != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(user: widget.user!),
+        ),
+      );
+    } else {
+      // Optionnel: Afficher un message si l'utilisateur n'est pas connecté
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Utilisateur non connecté'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void deleteVoiture(int id) async {
     await api.deleteVoiture(id);
     loadData();
@@ -175,6 +199,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ];
     } else {
       return [
+        // ⬅️ AJOUTEZ LE BOUTON PROFIL ICI
+        IconButton(
+          onPressed: navigateToProfile,
+          icon: const Icon(Icons.person_outline),
+          tooltip: 'Mon profil',
+        ),
         IconButton(
           onPressed: () {
             setState(() {
