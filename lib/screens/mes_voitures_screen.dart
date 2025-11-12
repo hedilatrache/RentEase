@@ -393,7 +393,7 @@ class _MesVoituresScreenState extends State<MesVoituresScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => VoitureDetailScreen(voiture: voiture),
+                  builder: (context) => VoitureDetailScreen(voiture: voiture ,userId: widget.userId),
                 ),
               );
             },

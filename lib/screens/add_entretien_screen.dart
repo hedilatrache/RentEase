@@ -1,13 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:rentease/models/entretien.dart';
 import 'package:rentease/models/garage.dart';
+import 'package:rentease/models/voiture.dart';
 import 'package:rentease/services/entretien_service.dart';
 import 'package:rentease/services/garage_service.dart';
 import 'package:rentease/database/database_helper.dart';
 import 'garage_list_screen.dart';
 
 class AddEntretienScreen extends StatefulWidget {
-  const AddEntretienScreen({Key? key}) : super(key: key);
+  final Voiture voiture; // ✅ Voiture obligatoire passée depuis le détail
+  final int userId;
+
+  const AddEntretienScreen({Key? key, required this.voiture,required this.userId}) : super(key: key);
 
   @override
   _AddEntretienScreenState createState() => _AddEntretienScreenState();
@@ -31,14 +37,13 @@ class _AddEntretienScreenState extends State<AddEntretienScreen> {
   final TextEditingController _kilometrageController = TextEditingController();
 
   // Variables pour les sélecteurs
-  int _selectedVoitureId = 1;
   Garage? _selectedGarage;
   String _selectedStatut = "planifié";
   DateTime _selectedDate = DateTime.now();
   DateTime? _selectedProchainEntretien;
 
   // Variables pour le toggle garage
-  bool _showGarageSelection = false; // Par défaut, pas de sélection de garage
+  bool _showGarageSelection = false;
 
   // Données
   List<Garage> _garages = [];
@@ -137,8 +142,7 @@ class _AddEntretienScreenState extends State<AddEntretienScreen> {
           // Utiliser le garage sélectionné
           garageId = _selectedGarage!.id!;
         } else {
-          // Utiliser un garage par défaut (vous pouvez changer cette logique)
-          // Par exemple, le premier garage de la liste ou un ID fixe
+          // Utiliser un garage par défaut (le premier de la liste)
           if (_garages.isNotEmpty) {
             garageId = _garages.first.id!;
           } else {
@@ -147,10 +151,11 @@ class _AddEntretienScreenState extends State<AddEntretienScreen> {
           }
         }
 
-        // Ajouter l'entretien
+        // Ajouter l'entretien avec la voiture pré-sélectionnée
         final entretien = Entretien(
-          voitureId: _selectedVoitureId,
+          voitureId: widget.voiture.id!, // ✅ Utiliser l'ID de la voiture passée en paramètre
           garageId: garageId,
+          userId: widget.userId,
           typeEntretien: _typeController.text,
           description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
           dateEntretien: _selectedDate,
@@ -530,13 +535,79 @@ class _AddEntretienScreenState extends State<AddEntretienScreen> {
     );
   }
 
+  // ✅ NOUVELLE MÉTHODE : Afficher les informations de la voiture
+  Widget _buildVoitureInfo() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: violet.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: violet, width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: violetClair,
+              borderRadius: BorderRadius.circular(8),
+              image: widget.voiture.image.isNotEmpty
+                  ? DecorationImage(
+                image: FileImage(File(widget.voiture.image)),
+                fit: BoxFit.cover,
+              )
+                  : null,
+            ),
+            child: widget.voiture.image.isEmpty
+                ? Icon(Icons.directions_car, color: Colors.white, size: 30)
+                : null,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Véhicule concerné',
+                  style: TextStyle(
+                    color: violet,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.voiture.marque} ${widget.voiture.modele}',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${widget.voiture.immatriculation} • ${widget.voiture.annee}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.check_circle, color: Colors.green, size: 24),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Nouvel Entretien',
+        title: Text(
+          'Entretien - ${widget.voiture.marque} ${widget.voiture.modele}',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -558,6 +629,10 @@ class _AddEntretienScreenState extends State<AddEntretienScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ✅ SECTION VÉHICULE - Affichage de la voiture pré-sélectionnée
+                _buildVoitureInfo(),
+                const SizedBox(height: 24),
+
                 // Type d'entretien
                 _buildFormField(
                   label: 'Type d\'entretien *',

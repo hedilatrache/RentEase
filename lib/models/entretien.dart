@@ -2,6 +2,7 @@ class Entretien {
   int? id;
   int voitureId;
   int garageId;
+  int userId; // ✅ NOUVEAU : ID de l'utilisateur
   String typeEntretien;
   String? description;
   DateTime dateEntretien;
@@ -15,6 +16,7 @@ class Entretien {
     this.id,
     required this.voitureId,
     required this.garageId,
+    required this.userId, // ✅ NOUVEAU
     required this.typeEntretien,
     this.description,
     required this.dateEntretien,
@@ -30,6 +32,7 @@ class Entretien {
       'id': id,
       'voiture_id': voitureId,
       'garage_id': garageId,
+      'user_id': userId, // ✅ NOUVEAU
       'type_entretien': typeEntretien,
       'description': description,
       'date_entretien': dateEntretien.toIso8601String(),
@@ -46,6 +49,7 @@ class Entretien {
       id: map['id'],
       voitureId: map['voiture_id'],
       garageId: map['garage_id'],
+      userId: map['user_id'], // ✅ NOUVEAU
       typeEntretien: map['type_entretien'],
       description: map['description'],
       dateEntretien: DateTime.parse(map['date_entretien']),
@@ -77,6 +81,6 @@ class Entretien {
 
   @override
   String toString() {
-    return 'Entretien{id: $id, voitureId: $voitureId, type: $typeEntretien, date: $dateEntretien, statut: $statut}';
+    return 'Entretien{id: $id, voitureId: $voitureId, userId: $userId, type: $typeEntretien, date: $dateEntretien, statut: $statut}';
   }
 }

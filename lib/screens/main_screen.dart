@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:rentease/screens/mes_reservations_screen.dart';
 import 'package:rentease/screens/mes_voitures_screen.dart';
+import 'package:rentease/screens/reservation_screen.dart';
 import 'package:rentease/screens/voiture_list_screen1.dart';
 import '../models/user.dart';
 import 'entretien_list_screen.dart';
@@ -41,6 +43,7 @@ class _MainScreenState extends State<MainScreen> {
       VoitureListScreen(userId: widget.user?.id ?? 0),
       EntretienListScreen(user: widget.user), // ⬅️ PLUS de const, et passez user
       const GarageListScreen(), // Si GarageListScreen n'a pas besoin de user
+      MesReservationsScreen(userId: widget.user?.id ?? 0),
       // ✅ CORRIGÉ : Gestion du user nullable
       if (widget.user != null)
         ProfilePage(user: widget.user!)
@@ -118,6 +121,10 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.local_car_wash),
               label: 'Garages',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.car_repair),
+              label: 'Reservation',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person),
