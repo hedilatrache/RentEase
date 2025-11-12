@@ -5,17 +5,20 @@ import 'package:intl/intl.dart';
 import '../models/reservation.dart';
 import '../models/voiture.dart';
 import '../services/reservation_service.dart';
+import '../services/session_manager.dart';
 
 class EditReservationScreen extends StatefulWidget {
   final Reservation reservation;
   final Voiture voiture;
   final int userId;
+  final bool isCarOwner;
 
   const EditReservationScreen({
     Key? key,
     required this.reservation,
     required this.voiture,
     required this.userId,
+    this.isCarOwner = false,
   }) : super(key: key);
 
   @override
@@ -27,11 +30,13 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
 
   late DateTime _dateDebut;
   late DateTime _dateFin;
+  late StatutRes _statut;
   int _nombreJours = 0;
   double _prixTotal = 0.0;
   double _prixInitial = 0.0;
   bool _isLoading = false;
   bool _hasChanges = false;
+  bool _isCarOwner = false;
 
   // ✅ CHARTE GRAPHIQUE
   final Color violet = const Color(0xFF7201FE);
@@ -44,8 +49,17 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
     super.initState();
     _dateDebut = widget.reservation.dateDebut;
     _dateFin = widget.reservation.dateFin;
+    _statut = widget.reservation.statut;
     _prixInitial = widget.reservation.prixTotal;
+    _checkUserRole();
     _calculatePrice();
+  }
+
+  Future<void> _checkUserRole() async {
+    final isOwner = await SessionManager.isUserCarsOwner();
+    setState(() {
+      _isCarOwner = isOwner;
+    });
   }
 
   @override
@@ -84,18 +98,24 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
 
             const SizedBox(height: 24),
 
+            // Statut de la réservation (visible seulement pour les car owners)
+            if (_isCarOwner) ...[
+              _buildStatusSection(),
+              const SizedBox(height: 24),
+            ],
+
             // Dates actuelles
             _buildCurrentDates(),
 
             const SizedBox(height: 24),
 
             // Nouvelle sélection de dates
-            _buildDateSelection(),
+            if (!_isCarOwner) _buildDateSelection(),
 
             const SizedBox(height: 24),
 
             // Comparaison des prix
-            _buildPriceComparison(),
+            if (!_isCarOwner) _buildPriceComparison(),
 
             const SizedBox(height: 32),
 
@@ -169,6 +189,160 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
     );
   }
 
+  Widget _buildStatusSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Statut de la réservation',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: violet,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: violetClair.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: violetClair),
+          ),
+          child: Column(
+            children: [
+              _buildStatusInfo('Statut actuel', _getStatusText(widget.reservation.statut), _getStatusColor(widget.reservation.statut)),
+              const SizedBox(height: 16),
+              _buildStatusDropdown(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusInfo(String label, String value, Color color) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          '$label:',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[600],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color),
+          ),
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              color: color,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Nouveau statut:',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: violet.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.white,
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<StatutRes>(
+              value: _statut,
+              isExpanded: true,
+              icon: Icon(Icons.arrow_drop_down, color: violet),
+              items: StatutRes.values.map((StatutRes status) {
+                return DropdownMenuItem<StatutRes>(
+                  value: status,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(status),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _getStatusText(status),
+                        style: GoogleFonts.inter(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (StatutRes? newStatus) {
+                if (newStatus != null) {
+                  setState(() {
+                    _statut = newStatus;
+                    _checkChanges();
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getStatusText(StatutRes status) {
+    switch (status) {
+      case StatutRes.pending:
+        return 'En attente';
+      case StatutRes.confirmed:
+        return 'Confirmée';
+      case StatutRes.cancelled:
+        return 'Annulée';
+      default:
+        return 'Inconnu';
+    }
+  }
+
+  Color _getStatusColor(StatutRes status) {
+    switch (status) {
+      case StatutRes.pending:
+        return Colors.orange;
+      case StatutRes.confirmed:
+        return Colors.green;
+      case StatutRes.cancelled:
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   Widget _buildCurrentDates() {
     final dateFormat = DateFormat('dd/MM/yyyy');
 
@@ -187,7 +361,7 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
               Icon(Icons.info, color: Colors.blue[600], size: 20),
               const SizedBox(width: 8),
               Text(
-                'Dates actuelles',
+                'Informations actuelles',
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w700,
                   color: Colors.blue[800],
@@ -199,6 +373,8 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
           _buildDateInfo('Début', dateFormat.format(widget.reservation.dateDebut)),
           _buildDateInfo('Fin', dateFormat.format(widget.reservation.dateFin)),
           _buildDateInfo('Prix initial', '${_prixInitial.toStringAsFixed(2)}€'),
+          if (_isCarOwner)
+            _buildDateInfo('Statut', _getStatusText(widget.reservation.statut)),
         ],
       ),
     );
@@ -420,7 +596,12 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
   Widget _buildActionButtons() {
     final bool hasDateChanges = _dateDebut != widget.reservation.dateDebut ||
         _dateFin != widget.reservation.dateFin;
-    final bool isFormValid = hasDateChanges &&
+    final bool hasStatusChanges = _statut != widget.reservation.statut;
+    final bool hasChanges = hasDateChanges || hasStatusChanges;
+
+    final bool isFormValid = _isCarOwner
+        ? hasStatusChanges // Car owners only need status changes
+        : hasDateChanges && // Regular users need valid date changes
         _dateFin.isAfter(_dateDebut) &&
         !_dateDebut.isBefore(DateTime.now().subtract(const Duration(days: 1))) &&
         !_dateDebut.isBefore(widget.reservation.dateDebut);
@@ -447,7 +628,7 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
                 : Text(
-              'Sauvegarder les modifications',
+              _isCarOwner ? 'Mettre à jour le statut' : 'Sauvegarder les modifications',
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -526,46 +707,52 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
   void _checkChanges() {
     final hasDateChanges = _dateDebut != widget.reservation.dateDebut ||
         _dateFin != widget.reservation.dateFin;
-    setState(() => _hasChanges = hasDateChanges);
+    final hasStatusChanges = _statut != widget.reservation.statut;
+    setState(() => _hasChanges = hasDateChanges || hasStatusChanges);
   }
 
   Future<void> _saveChanges() async {
     setState(() => _isLoading = true);
 
     try {
-      // Vérifier si les dates ont changé
-      final datesChanged = _dateDebut != widget.reservation.dateDebut ||
-          _dateFin != widget.reservation.dateFin;
-
-      if (datesChanged) {
-        // Vérifier la disponibilité pour les nouvelles dates en excluant la réservation actuelle
-        final isAvailable = await _reservationService.checkDisponibiliteForEdit(
-          voitureId: widget.voiture.id!,
-          dateDebut: _dateDebut,
-          dateFin: _dateFin,
-          currentReservationId: widget.reservation.id!,
+      if (_isCarOwner) {
+        // Car owner only updates status
+        await _reservationService.updateReservationStatus(
+          reservationId: widget.reservation.id!,
+          newStatus: _statut,
         );
+      } else {
+        // Regular user updates dates
+        final datesChanged = _dateDebut != widget.reservation.dateDebut ||
+            _dateFin != widget.reservation.dateFin;
 
-        if (!isAvailable) {
-          throw Exception('Le véhicule n\'est pas disponible pour ces dates');
+        if (datesChanged) {
+          final isAvailable = await _reservationService.checkDisponibiliteForEdit(
+            voitureId: widget.voiture.id!,
+            dateDebut: _dateDebut,
+            dateFin: _dateFin,
+            currentReservationId: widget.reservation.id!,
+          );
+
+          if (!isAvailable) {
+            throw Exception('Le véhicule n\'est pas disponible pour ces dates');
+          }
         }
+
+        await _reservationService.updateUserReservationDates(
+          reservationId: widget.reservation.id!,
+          newDateDebut: _dateDebut,
+          newDateFin: _dateFin,
+          newPrixTotal: _prixTotal,
+        );
       }
 
-      // Mettre à jour la réservation
-      await _reservationService.updateUserReservationDates(
-        reservationId: widget.reservation.id!,
-        newDateDebut: _dateDebut,
-        newDateFin: _dateFin,
-        newPrixTotal: _prixTotal,
-      );
-
-      // Retour à l'écran précédent avec un message de succès
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Réservation modifiée avec succès',
+              _isCarOwner ? 'Statut mis à jour avec succès' : 'Réservation modifiée avec succès',
               style: GoogleFonts.inter(color: Colors.white),
             ),
             backgroundColor: Colors.green,
@@ -579,6 +766,7 @@ class _EditReservationScreenState extends State<EditReservationScreen> {
       }
     }
   }
+
   void _showErrorDialog(String message) {
     showDialog(
       context: context,

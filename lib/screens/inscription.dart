@@ -23,6 +23,8 @@ class _InscriptionPageState extends State<InscriptionPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  UserRole _selectedRole = UserRole.user;
+
 
   // ✅ CHARTE GRAPHIQUE DE RENTEASE
   final Color violet = const Color(0xFF7201FE);
@@ -73,6 +75,9 @@ class _InscriptionPageState extends State<InscriptionPage> {
               ),
 
               const SizedBox(height: 40),
+              _buildRoleSelection(),
+
+              const SizedBox(height: 20),
 
               // Formulaire
               _buildNomField(),
@@ -522,6 +527,7 @@ class _InscriptionPageState extends State<InscriptionPage> {
         telephone: telephone,
         password: password,
         dateInscription: DateTime.now(),
+        role: _selectedRole
       );
 
       // Insérer dans la base de données
@@ -586,5 +592,117 @@ class _InscriptionPageState extends State<InscriptionPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Sélection du rôle
+  Widget _buildRoleSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'I am a',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: violet,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: grisClair,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: violetClair, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              // Bouton Radio pour User
+              Expanded(
+                child: _buildRoleRadio(
+                  role: UserRole.user,
+                  title: 'Client',
+                  subtitle: 'I want to rent cars',
+                  icon: Icons.person_outline,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Bouton Radio pour Cars Owner
+              Expanded(
+                child: _buildRoleRadio(
+                  role: UserRole.carsOwner,
+                  title: 'Car Owner',
+                  subtitle: 'I want to rent out my cars',
+                  icon: Icons.directions_car_outlined,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+// ✅ NOUVELLE MÉTHODE : Bouton radio pour chaque rôle
+  Widget _buildRoleRadio({
+    required UserRole role,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedRole == role;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedRole = role;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? violet.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? violet : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isSelected ? violet : Colors.grey[300],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.grey[600],
+                size: 20,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? violet : Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: isSelected ? violet : Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

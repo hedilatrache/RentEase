@@ -7,7 +7,8 @@ import 'package:rentease/screens/reservation_detail_screen.dart';
 import '../models/reservation.dart';
 import '../models/voiture.dart';
 import '../services/reservation_service.dart';
-import '../database/database_helper.dart'; // Import de la DB
+import '../services/session_manager.dart'; // Add this import
+import '../database/database_helper.dart';
 
 class MesReservationsScreen extends StatefulWidget {
   final int userId;
@@ -22,6 +23,7 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
   final ReservationService _reservationService = ReservationService();
   List<Map<String, dynamic>> _reservations = [];
   bool _isLoading = true;
+  bool _isCarOwner = false;
 
   final Color violet = const Color(0xFF7201FE);
   final Color jaune = const Color(0xFFFFBB00);
@@ -35,7 +37,14 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
 
   Future<void> _loadReservations() async {
     try {
-      final reservations = await _reservationService.getReservationsWithDetails(widget.userId);
+      // Check if user is car owner
+      _isCarOwner = await SessionManager.isUserCarsOwner();
+
+      // Load reservations based on user role
+      final reservations = _isCarOwner
+          ? await _reservationService.getReservationsForCarOwner(widget.userId)
+          : await _reservationService.getReservationsWithDetails(widget.userId);
+
       setState(() {
         _reservations = reservations;
         _isLoading = false;
@@ -51,7 +60,7 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Mes Réservations',
+          _isCarOwner ? 'Réservations de mes véhicules' : 'Mes Réservations',
           style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         backgroundColor: violet,
@@ -70,7 +79,11 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long, size: 80, color: Colors.grey[300]),
+          Icon(
+              _isCarOwner ? Icons.car_rental : Icons.receipt_long,
+              size: 80,
+              color: Colors.grey[300]
+          ),
           const SizedBox(height: 16),
           Text(
             'Aucune réservation',
@@ -82,7 +95,9 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Vos réservations apparaîtront ici',
+            _isCarOwner
+                ? 'Les réservations de vos véhicules apparaîtront ici'
+                : 'Vos réservations apparaîtront ici',
             style: GoogleFonts.inter(
               color: Colors.grey[400],
             ),
@@ -179,6 +194,19 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
                             color: Colors.grey[600],
                           ),
                         ),
+                        // Show client info for car owners
+                        if (_isCarOwner && reservation['user_nom'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Client: ${reservation['user_prenom']} ${reservation['user_nom']}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: violet,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -291,7 +319,6 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
               const SizedBox(height: 8),
 
               // Boutons d'action
-              if (statut == 'pending' || statut == 'confirmed')
                 _buildActionButtons(reservation, statut),
             ],
           ),
@@ -340,8 +367,6 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
   }
 
   Widget _buildActionButtons(Map<String, dynamic> reservation, String statut) {
-    final bool isPending = statut == 'pending';
-
     return Column(
       children: [
         const Divider(height: 20),
@@ -382,172 +407,13 @@ class _MesReservationsScreenState extends State<MesReservationsScreen> {
 
             const SizedBox(width: 12),
 
-            // Bouton Modifier (uniquement pour les réservations en attente)
-            if (isPending)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    _navigateToEditReservation(reservation);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    side: const BorderSide(color: Colors.blue),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: Text(
-                    'Modifier',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
 
-            if (isPending) const SizedBox(width: 12),
-
-            // Bouton Annuler
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _annulerReservation(reservation['id']),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-                icon: const Icon(Icons.cancel, size: 18),
-                label: Text(
-                  'Annuler',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ],
     );
   }
 
-  Future<void> _annulerReservation(int reservationId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.warning_amber, color: Colors.orange),
-            const SizedBox(width: 8),
-            Text(
-              'Annuler la réservation',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-        content: Text(
-          'Êtes-vous sûr de vouloir annuler cette réservation ?\n\n'
-              'Cette action est irréversible.',
-          style: GoogleFonts.inter(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Non, garder',
-              style: GoogleFonts.inter(color: Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(
-              'Oui, annuler',
-              style: GoogleFonts.inter(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _reservationService.updateReservationStatus(
-          reservationId: reservationId,
-          newStatus: StatutRes.cancelled,
-        );
-        _loadReservations(); // Recharger la liste
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Réservation annulée avec succès',
-                style: GoogleFonts.inter(color: Colors.white),
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          _showErrorSnackbar('Erreur lors de l\'annulation: $e');
-        }
-      }
-    }
-  }
-
-  Future<void> _navigateToEditReservation(Map<String, dynamic> reservation) async {
-    try {
-      // Charger les données complètes de la voiture directement depuis la DB
-      final voiture = await DB().getVoitureById(reservation['voiture_id']);
-
-      if (voiture == null) {
-        throw Exception('Véhicule non trouvé');
-      }
-
-      // Créer l'objet Reservation
-      final reservationObj = Reservation(
-        id: reservation['id'],
-        userId: reservation['user_id'],
-        voitureId: reservation['voiture_id'],
-        dateDebut: DateTime.parse(reservation['date_debut']),
-        dateFin: DateTime.parse(reservation['date_fin']),
-        prixTotal: (reservation['prix_total'] as num).toDouble(),
-        statut: StatutRes.values.firstWhere(
-              (e) => e.name == reservation['statut'],
-          orElse: () => StatutRes.pending,
-        ),
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EditReservationScreen(
-            reservation: reservationObj,
-            voiture: voiture,
-            userId: widget.userId,
-          ),
-        ),
-      ).then((_) {
-        if (mounted) {
-          _loadReservations();
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        _showErrorSnackbar('Erreur: $e');
-      }
-    }
-  }
 
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(

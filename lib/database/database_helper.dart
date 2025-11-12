@@ -23,15 +23,45 @@ class DB {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 13 , // Augmenter la version
+      version: 19 , // Augmenter la version
       onCreate: (db, version) async {
-        // ✅ NOUVELLE TABLE : Catégorie
+        // NOUVELLE TABLE : Catégorie
         await db.execute('''
         CREATE TABLE categorie(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           nom TEXT NOT NULL
         )
       ''');
+        // Table users
+        await db.execute('''
+  CREATE TABLE users(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom TEXT NOT NULL,
+    prenom TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    telephone TEXT NOT NULL,
+    password TEXT NOT NULL,
+    date_inscription TEXT NOT NULL,
+    image_path TEXT,
+    role TEXT NOT NULL DEFAULT 'user' 
+  )
+''');
+
+
+
+        await db.execute('''
+      CREATE TABLE avis(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        voiture_id INTEGER,
+        commentaire TEXT NOT NULL,
+        note REAL NOT NULL CHECK (note >= 1 AND note <= 5),
+        date_creation TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (voiture_id) REFERENCES voiture (id)
+        
+      )
+    ''');
 
 
         await db.execute('''
@@ -44,7 +74,7 @@ class DB {
             statut TEXT NOT NULL CHECK(statut IN ('pending', 'confirmed', 'cancelled')),
             prix_total REAL NOT NULL,
         
-            FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY(voiture_id) REFERENCES voiture(id) ON DELETE CASCADE
           )
         ''');
@@ -61,31 +91,19 @@ class DB {
     disponibilite INTEGER NOT NULL,
     categorieId INTEGER NOT NULL,
     image TEXT,
-    user_id INTEGER, -- ✅ NOUVEAU : ID du propriétaire
+    user_id INTEGER, 
     FOREIGN KEY (categorieId) REFERENCES categorie(id),
-    FOREIGN KEY (user_id) REFERENCES users(id) -- ✅ Lien vers la table users
+    FOREIGN KEY (user_id) REFERENCES users(id) 
   )
 ''');
-        // ✅ INSÉRER DES CATÉGORIES PAR DÉFAUT
+        // INSÉRER DES CATÉGORIES PAR DÉFAUT
         await db.insert('categorie', {'nom': 'Économique'});
         await db.insert('categorie', {'nom': 'Compacte'});
         await db.insert('categorie', {'nom': 'SUV'});
         await db.insert('categorie', {'nom': 'Luxe'});
         await db.insert('categorie', {'nom': 'Sport'});
 
-        // Table users
-        await db.execute('''
-  CREATE TABLE users(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nom TEXT NOT NULL,
-    prenom TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    telephone TEXT NOT NULL,
-    password TEXT NOT NULL,
-    date_inscription TEXT NOT NULL,
-    image_path TEXT  -- ✅ Nouvelle colonne pour l'image
-  )
-''');
+
 
         // Table garage
         await db.execute('''
@@ -108,7 +126,7 @@ class DB {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     voiture_id INTEGER NOT NULL,
     garage_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL, -- ✅ NOUVEAU : ID de l'utilisateur
+    user_id INTEGER NOT NULL, 
     type_entretien TEXT NOT NULL,
     description TEXT,
     date_entretien TEXT NOT NULL,
@@ -119,24 +137,12 @@ class DB {
     created_at TEXT NOT NULL,
     FOREIGN KEY (voiture_id) REFERENCES voiture(id) ON DELETE CASCADE,
     FOREIGN KEY (garage_id) REFERENCES garage(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE -- ✅ NOUVEAU
-  )
-''');
-        await db.execute('''
-  CREATE TABLE reset_tokens(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    token TEXT UNIQUE NOT NULL,
-    email TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    is_used INTEGER DEFAULT 0,
-    FOREIGN KEY (email) REFERENCES users (email)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )
 ''');
 
-// Créer un index pour les recherches par token
-        await db.execute('CREATE INDEX idx_reset_tokens_token ON reset_tokens(token)');
-        await db.execute('CREATE INDEX idx_reset_tokens_email ON reset_tokens(email)');
+
+
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 3) {
@@ -728,6 +734,7 @@ class DB {
         telephone: '', // Pas de téléphone pour les connexions sociales
         password: _generateSocialPassword(email), // Générer un mot de passe unique
         dateInscription: DateTime.now(),
+        role: UserRole.user
       );
 
       final userId = await insertUser(newUser);

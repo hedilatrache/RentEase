@@ -1,3 +1,8 @@
+enum UserRole {
+  user,
+  carsOwner
+}
+
 class User {
   int? id;
   String nom;
@@ -6,7 +11,8 @@ class User {
   String telephone;
   String password;
   DateTime dateInscription;
-  String? imagePath; // ✅ Ajout du champ image
+  String? imagePath;
+  UserRole role;
 
   User({
     this.id,
@@ -16,7 +22,8 @@ class User {
     required this.telephone,
     required this.password,
     required this.dateInscription,
-    this.imagePath, // ✅ Nouveau champ
+    this.imagePath,
+    required this.role
   });
 
   // Convertir un User en Map pour la base de données
@@ -29,7 +36,8 @@ class User {
       'telephone': telephone,
       'password': password,
       'date_inscription': dateInscription.toIso8601String(),
-      'image_path': imagePath, // ✅ Ajout dans la map
+      'image_path': imagePath,
+      'role': role.name,
     };
   }
 
@@ -43,13 +51,33 @@ class User {
       telephone: map['telephone'],
       password: map['password'],
       dateInscription: DateTime.parse(map['date_inscription']),
-      imagePath: map['image_path'], // ✅ Récupération de l'image
+      imagePath: map['image_path'],
+      role: UserRole.values.firstWhere(
+            (role) => role.name == map['role'],
+        orElse: () => UserRole.user, // ✅ Valeur par défaut si non trouvé
+      ),
     );
+  }
+
+  // Méthodes utilitaires pour vérifier le rôle
+  bool get isUser => role == UserRole.user;
+  bool get isCarsOwner => role == UserRole.carsOwner;
+
+  // Méthode pour obtenir le nom affichable du rôle
+  String get roleDisplay {
+    switch (role) {
+      case UserRole.user:
+        return 'Utilisateur';
+      case UserRole.carsOwner:
+        return 'Propriétaire';
+      default:
+        return 'Utilisateur';
+    }
   }
 
   @override
   String toString() {
-    return 'User{id: $id, nom: $nom, prenom: $prenom, email: $email, telephone: $telephone, dateInscription: $dateInscription, imagePath: $imagePath}';
+    return 'User{id: $id, nom: $nom, prenom: $prenom, email: $email, telephone: $telephone, dateInscription: $dateInscription, imagePath: $imagePath, role: $role}';
   }
 
   User copyWith({
@@ -60,7 +88,8 @@ class User {
     String? telephone,
     String? password,
     DateTime? dateInscription,
-    String? imagePath, // ✅ Ajout dans copyWith
+    String? imagePath,
+    UserRole? role,
   }) {
     return User(
       id: id ?? this.id,
@@ -70,7 +99,8 @@ class User {
       telephone: telephone ?? this.telephone,
       password: password ?? this.password,
       dateInscription: dateInscription ?? this.dateInscription,
-      imagePath: imagePath ?? this.imagePath, // ✅ Copie de l'image
+      imagePath: imagePath ?? this.imagePath,
+      role: role ?? this.role,
     );
   }
 }

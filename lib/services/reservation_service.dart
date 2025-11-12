@@ -22,7 +22,21 @@ class ReservationService {
     final List<Map<String, dynamic>> maps = await db.query('reservation');
     return List.generate(maps.length, (i) => Reservation.fromMap(maps[i]));
   }
+  Future<Reservation?> getReservationById(int reservationId) async {
+    final db = await _db;
 
+    final List<Map<String, dynamic>> maps = await db.query(
+      'reservation',
+      where: 'id = ?',
+      whereArgs: [reservationId],
+    );
+
+    if (maps.isNotEmpty) {
+      return Reservation.fromMap(maps.first);
+    } else {
+      return null;
+    }
+  }
   // Get reservations by user ID
   Future<List<Reservation>> getReservationsByUserId(int userId) async {
     final db = await _db;
@@ -88,8 +102,8 @@ class ReservationService {
   }
 
 
+
 // Vérifier la disponibilité d'une voiture pour une période
-  // Ajoutez cette méthode dans votre ReservationService
   Future<bool> checkDisponibiliteForEdit({
     required int voitureId,
     required DateTime dateDebut,
@@ -142,4 +156,32 @@ class ReservationService {
     ORDER BY r.date_debut DESC
   ''', [userId]);
   }
+  Future<List<Map<String, dynamic>>> getReservationsForCarOwner(int ownerId) async {
+    final db = await _db;
+
+    return await db.rawQuery('''
+    SELECT 
+      r.*,
+      v.marque,
+      v.modele,
+      v.annee,
+      v.immatriculation,
+      v.couleur,
+      v.prixParJour,
+      v.disponibilite,
+      v.image,
+      c.nom as categorie_nom,
+      u.email as user_email,
+      u.nom as user_nom,
+      u.prenom as user_prenom,
+      u.telephone as user_telephone
+    FROM reservation r
+    LEFT JOIN voiture v ON r.voiture_id = v.id
+    LEFT JOIN categorie c ON v.categorieId = c.id
+    LEFT JOIN users u ON r.user_id = u.id
+    WHERE v.user_id = ?
+    ORDER BY r.date_debut DESC
+  ''', [ownerId]);
+  }
+
 }

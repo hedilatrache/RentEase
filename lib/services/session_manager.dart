@@ -1,3 +1,4 @@
+import 'package:rentease/models/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionManager {
@@ -5,12 +6,14 @@ class SessionManager {
   static const String _keyRememberMe = 'rememberMe';
   static const String _keyUserId = 'userId';
   static const String _keyUserEmail = 'userEmail';
+  static const String _keyUserRole = 'userRole';
 
   // Sauvegarder l'état de connexion
   static Future<void> saveLoginState({
     required bool rememberMe,
     required int userId,
     required String userEmail,
+    required UserRole userRole,
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -18,6 +21,7 @@ class SessionManager {
     await prefs.setBool(_keyRememberMe, rememberMe);
     await prefs.setInt(_keyUserId, userId);
     await prefs.setString(_keyUserEmail, userEmail);
+    await prefs.setString(_keyUserRole, userRole.name);
   }
 
   // Vérifier si l'utilisateur est connecté
@@ -48,18 +52,37 @@ class SessionManager {
     return prefs.getString(_keyUserEmail);
   }
 
+  // ✅ NOUVELLE MÉTHODE : Récupérer le rôle de l'utilisateur
+  static Future<UserRole?> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final roleString = prefs.getString(_keyUserRole);
+
+    if (roleString != null) {
+      try {
+        return UserRole.values.firstWhere(
+              (role) => role.name == roleString,
+          orElse: () => UserRole.user, // Valeur par défaut
+        );
+      } catch (e) {
+        return UserRole.user; // Valeur par défaut en cas d'erreur
+      }
+    }
+    return null;
+  }
+
   // Vérifier si Remember Me est activé
   static Future<bool> isRememberMeActive() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyRememberMe) ?? false;
   }
 
-  // Déconnexion - Effacer la session
+  // Déconnexion - Effacer la session (sauf Remember Me)
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyIsLoggedIn);
     await prefs.remove(_keyUserId);
     await prefs.remove(_keyUserEmail);
+    await prefs.remove(_keyUserRole);
     // On ne supprime PAS rememberMe pour qu'il se souvienne du choix
   }
 
@@ -67,5 +90,31 @@ class SessionManager {
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear(); // Supprime TOUT
+  }
+
+  // Récupérer toutes les informations de session
+  static Future<Map<String, dynamic>?> getSessionData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
+
+    if (!isLoggedIn) return null;
+
+    return {
+      'userId': prefs.getInt(_keyUserId),
+      'userEmail': prefs.getString(_keyUserEmail),
+      'userRole': await getUserRole(),
+      'rememberMe': prefs.getBool(_keyRememberMe) ?? false,
+    };
+  }
+
+  // Vérifier si l'utilisateur est un propriétaire
+  static Future<bool> isUserCarsOwner() async {
+    final role = await getUserRole();
+    return role == UserRole.carsOwner;
+  }
+  // Vérifier si l'utilisateur
+  static Future<bool> isUserStandard() async {
+    final role = await getUserRole();
+    return role == UserRole.user;
   }
 }
