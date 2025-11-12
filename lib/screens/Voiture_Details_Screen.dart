@@ -25,7 +25,7 @@ class Voiture_Details_Screen extends StatelessWidget {
           },
         );
       } else {
-        // Image locale (assets ou file)
+        // Image locale (Assets ou file)
         return Image.asset(
           voiture.image,
           fit: BoxFit.cover,

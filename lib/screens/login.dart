@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rentease/screens/inscription.dart';
 import 'package:rentease/database/database_helper.dart';
+import '../models/user.dart';
 import '../services/session_manager.dart';
 import 'forgot_password_screen.dart';
 import 'main_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -21,6 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
 
   final DB _databaseHelper = DB();
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FacebookAuth _facebookAuth = FacebookAuth.instance;
 
   // ✅ CHARTE GRAPHIQUE DE RENTEASE
   final Color violet = const Color(0xFF7201FE);
@@ -88,6 +93,16 @@ class _LoginPageState extends State<LoginPage> {
 
                 // Create Account
                 _buildCreateAccount(context),
+
+                const SizedBox(height: 30),
+
+                // Ligne de séparation "or sign in with"
+                _buildOrSignInWith(),
+
+                const SizedBox(height: 30),
+
+                // Boutons de connexion sociale
+                _buildSocialLoginButtons(),
               ],
             ),
           ),
@@ -96,6 +111,221 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Widget _buildOrSignInWith() {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(
+            color: Colors.grey[300],
+            thickness: 1,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'or sign in with',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Divider(
+            color: Colors.grey[300],
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialLoginButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Bouton Google
+        _buildSocialButton(
+          iconPath: 'Assets/images/google.png', // ✅ Corrigé le chemin
+          onPressed: _signInWithGoogle,
+          color: Colors.white,
+        ),
+        const SizedBox(width: 20),
+
+        // Bouton Facebook
+        _buildSocialButton(
+          iconPath: 'Assets/images/facebook.png', // ✅ Corrigé le chemin
+          onPressed: _signInWithFacebook,
+          color: Colors.white,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialButton({
+    required String iconPath,
+    required VoidCallback onPressed,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.grey[300]!,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Image.asset(
+            iconPath,
+            width: 24,
+            height: 24,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(
+                iconPath.contains('google') ? Icons.g_mobiledata : Icons.facebook,
+                size: 24,
+                color: iconPath.contains('google') ? const Color(0xFF4285F4) : const Color(0xFF1877F2),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✅ CORRIGÉ : Connexion avec Google
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        _showErrorSnackbar('Annulé', 'Connexion Google annulée');
+        return;
+      }
+
+      // Récupérer les informations de base
+      final email = googleUser.email;
+      final displayName = googleUser.displayName ?? 'Utilisateur Google';
+
+      // Séparer le nom complet en prénom et nom
+      String prenom = displayName;
+      String nom = '';
+      final nameParts = displayName.split(' ');
+      if (nameParts.length > 1) {
+        prenom = nameParts.first;
+        nom = nameParts.sublist(1).join(' ');
+      }
+
+      // Trouver ou créer l'utilisateur
+      final User? user = await _databaseHelper.findOrCreateUser(email, nom, prenom);
+
+      if (user != null) {
+        await _handleSocialLoginSuccess(user, 'Google');
+      } else {
+        _showErrorSnackbar('Erreur', 'Impossible de créer le compte');
+      }
+    } catch (e) {
+      _showErrorSnackbar('Erreur Google', 'Une erreur est survenue: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // ✅ CORRIGÉ : Connexion avec Facebook
+  Future<void> _signInWithFacebook() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final LoginResult result = await _facebookAuth.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (result.status == LoginStatus.success) {
+        final userData = await _facebookAuth.getUserData(
+          fields: "email,name,first_name,last_name",
+        );
+
+        // Récupérer les informations
+        final email = userData['email'] as String?;
+        final firstName = userData['first_name'] as String? ?? '';
+        final lastName = userData['last_name'] as String? ?? '';
+        final fullName = userData['name'] as String? ?? 'Utilisateur Facebook';
+
+        // Utiliser l'email ou générer un email basé sur le nom
+        final userEmail = email ?? '${fullName.replaceAll(' ', '').toLowerCase()}@facebook.com';
+
+        // Déterminer prénom et nom
+        String prenom = firstName.isNotEmpty ? firstName : fullName;
+        String nom = lastName.isNotEmpty ? lastName : '';
+
+        if (firstName.isEmpty && lastName.isEmpty) {
+          final nameParts = fullName.split(' ');
+          prenom = nameParts.isNotEmpty ? nameParts.first : 'Utilisateur';
+          nom = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : 'Facebook';
+        }
+
+        // Trouver ou créer l'utilisateur
+        final User? user = await _databaseHelper.findOrCreateUser(userEmail, nom, prenom);
+
+        if (user != null) {
+          await _handleSocialLoginSuccess(user, 'Facebook');
+        } else {
+          _showErrorSnackbar('Erreur', 'Impossible de créer le compte');
+        }
+      } else {
+        _showErrorSnackbar('Erreur Facebook', 'Connexion annulée ou échouée');
+      }
+    } catch (e) {
+      _showErrorSnackbar('Erreur Facebook', 'Une erreur est survenue: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Gérer le succès de la connexion sociale
+  Future<void> _handleSocialLoginSuccess(User user, String platform) async {
+    // Sauvegarder la session
+    await SessionManager.saveLoginState(
+      rememberMe: true, // Toujours se souvenir pour les connexions sociales
+      userId: user.id!,
+      userEmail: user.email,
+    );
+
+    _showSuccessSnackbar('Succès', 'Bienvenue ${user.prenom} via $platform!');
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => MainScreen(user: user),
+      ),
+    );
+  }
+
+  // ... Les autres méthodes restent inchangées ...
   Widget _buildEmailField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +481,7 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
 
-        // Forget Password? - ✅ MODIFIÉ POUR NAVIGATION DIRECTE
+        // Forget Password?
         GestureDetector(
           onTap: () {
             Navigator.of(context).push(
@@ -259,7 +489,6 @@ class _LoginPageState extends State<LoginPage> {
                 builder: (context) => ForgotPasswordScreen(),
               ),
             );
-
           },
           child: Text(
             'Forget Password?',
@@ -273,6 +502,7 @@ class _LoginPageState extends State<LoginPage> {
       ],
     );
   }
+
   Widget _buildSignInButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -366,7 +596,6 @@ class _LoginPageState extends State<LoginPage> {
       final user = await _databaseHelper.authenticateUser(email, password);
 
       if (user != null) {
-        // ✅ SAUVEGARDER LA SESSION
         await SessionManager.saveLoginState(
           rememberMe: _rememberMe,
           userId: user.id!,
@@ -378,7 +607,7 @@ class _LoginPageState extends State<LoginPage> {
         await Future.delayed(const Duration(milliseconds: 1500));
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => MainScreen(user: user), // ✅ user est passé
+            builder: (context) => MainScreen(user: user),
           ),
         );
       } else {
@@ -391,84 +620,6 @@ class _LoginPageState extends State<LoginPage> {
         _isLoading = false;
       });
     }
-  }
-  void _showForgotPasswordDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Forgot Password?',
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w700,
-            color: violet,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter your email to reset your password',
-              style: GoogleFonts.inter(
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              decoration: BoxDecoration(
-                color: grisClair,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: violetClair,
-                  width: 1.5,
-                ),
-              ),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Your email',
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  prefixIcon: Icon(Icons.email_outlined, color: violet),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.inter(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _showSuccessSnackbar('Success', 'Password reset email sent!');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: violet,
-              foregroundColor: jaune,
-            ),
-            child: Text(
-              'Send Reset Link',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showErrorSnackbar(String title, String message) {

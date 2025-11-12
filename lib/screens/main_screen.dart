@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:rentease/screens/mes_voitures_screen.dart';
+import 'package:rentease/screens/voiture_list_screen1.dart';
 import '../models/user.dart';
 import 'entretien_list_screen.dart';
 import 'garage_list_screen.dart';
@@ -34,7 +36,9 @@ class _MainScreenState extends State<MainScreen> {
   void _initializeScreens() {
     _screens = [
       // ✅ CORRIGÉ : Passez l'utilisateur à tous les écrans qui en ont besoin
-      HomeScreen(user: widget.user),
+     // HomeScreen(user: widget.user),
+
+      VoitureListScreen(userId: widget.user?.id ?? 0),
       EntretienListScreen(user: widget.user), // ⬅️ PLUS de const, et passez user
       const GarageListScreen(), // Si GarageListScreen n'a pas besoin de user
       // ✅ CORRIGÉ : Gestion du user nullable

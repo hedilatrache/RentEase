@@ -16,7 +16,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ⚠️ TEMPORAIRE - DÉCOMMENTEZ POUR SUPPRIMER L'ANCIENNE BASE
-   //await deleteDatabase(join(await getDatabasesPath(), 'rentease.db'));
+  //await deleteDatabase(join(await getDatabasesPath(), 'rentease.db'));
 
   // Initialisation FFI pour Desktop
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows ||
