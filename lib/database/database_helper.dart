@@ -22,7 +22,7 @@ class DB {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 8 , // Augmenter la version
+      version: 9 , // Augmenter la version
       onCreate: (db, version) async {
         // Table voiture
         await db.execute('''
@@ -41,16 +41,17 @@ class DB {
 
         // Table users
         await db.execute('''
-          CREATE TABLE users(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nom TEXT NOT NULL,
-            prenom TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            telephone TEXT NOT NULL,
-            password TEXT NOT NULL,
-            date_inscription TEXT NOT NULL
-          )
-        ''');
+  CREATE TABLE users(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom TEXT NOT NULL,
+    prenom TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    telephone TEXT NOT NULL,
+    password TEXT NOT NULL,
+    date_inscription TEXT NOT NULL,
+    image_path TEXT  -- ✅ Nouvelle colonne pour l'image
+  )
+''');
 
         // Table garage
         await db.execute('''
@@ -482,7 +483,16 @@ class DB {
       whereArgs: [email],
     );
   }
-
+// Ajoutez cette méthode pour mettre à jour l'image
+  Future<int> updateUserImage(int userId, String imagePath) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      {'image_path': imagePath},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
 
 
 }

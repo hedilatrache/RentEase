@@ -1,10 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:rentease/models/user.dart';
 import 'package:rentease/database/database_helper.dart';
 import 'package:rentease/screens/login.dart';
-
-import '../services/session_manager.dart';
+import 'package:rentease/services/session_manager.dart';
+import 'package:rentease/services/image_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -46,6 +48,101 @@ class _ProfilePageState extends State<ProfilePage> {
     _telephoneController.text = _currentUser.telephone;
   }
 
+  // ✅ NOUVELLE MÉTHODE : Changer la photo de profil
+  Future<void> _changeProfilePicture() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Prendre une photo'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choisir depuis la galerie'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _pickImage(ImageSource.gallery);
+                },
+              ),
+              if (_currentUser.imagePath != null)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Supprimer la photo',
+                      style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _deleteProfilePicture();
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      File? imageFile;
+
+      if (source == ImageSource.camera) {
+        imageFile = await ImageService.takePhoto();
+      } else {
+        imageFile = await ImageService.pickFromGallery();
+      }
+
+      if (imageFile != null) {
+        // Sauvegarder l'image dans le dossier de l'app
+        final String savedImagePath = await ImageService.saveImageToAppDirectory(imageFile);
+
+        // Supprimer l'ancienne image si elle existe
+        if (_currentUser.imagePath != null) {
+          await ImageService.deleteImage(_currentUser.imagePath!);
+        }
+
+        // Mettre à jour la base de données
+        final result = await _databaseHelper.updateUserImage(_currentUser.id!, savedImagePath);
+
+        if (result > 0) {
+          setState(() {
+            _currentUser = _currentUser.copyWith(imagePath: savedImagePath);
+          });
+          _showSuccessSnackbar('Succès', 'Photo de profil mise à jour');
+        }
+      }
+    } catch (e) {
+      _showErrorSnackbar('Erreur', 'Impossible de changer la photo: $e');
+    }
+  }
+
+  Future<void> _deleteProfilePicture() async {
+    try {
+      if (_currentUser.imagePath != null) {
+        await ImageService.deleteImage(_currentUser.imagePath!);
+
+        final result = await _databaseHelper.updateUserImage(_currentUser.id!, '');
+
+        if (result > 0) {
+          setState(() {
+            _currentUser = _currentUser.copyWith(imagePath: null);
+          });
+          _showSuccessSnackbar('Succès', 'Photo de profil supprimée');
+        }
+      }
+    } catch (e) {
+      _showErrorSnackbar('Erreur', 'Impossible de supprimer la photo: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,7 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Section Avatar et Nom
+            // Section Avatar et Nom - ✅ MODIFIÉE
             _buildProfileHeader(),
             const SizedBox(height: 32),
 
@@ -90,25 +187,70 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ✅ MODIFIÉ : Nouveau design pour l'avatar avec image
   Widget _buildProfileHeader() {
     return Column(
       children: [
-        // Avatar
-        Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color: violetClair,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: violet,
-              width: 3,
-            ),
-          ),
-          child: Icon(
-            Icons.person,
-            size: 60,
-            color: violet,
+        // Avatar avec image
+        GestureDetector(
+          onTap: _changeProfilePicture,
+          child: Stack(
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: violetClair,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: violet,
+                    width: 3,
+                  ),
+                ),
+                child: _currentUser.imagePath != null
+                    ? ClipOval(
+                  child: Image.file(
+                    File(_currentUser.imagePath!),
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.person,
+                        size: 60,
+                        color: violet,
+                      );
+                    },
+                  ),
+                )
+                    : Icon(
+                  Icons.person,
+                  size: 60,
+                  color: violet,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: violet,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.camera_alt,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -146,6 +288,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Le reste du code reste inchangé...
   Widget _buildInfoSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -170,43 +313,39 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 20),
 
-          // Nom - ✅ CORRIGÉ : Toujours passer un Widget
           _buildInfoRow(
             icon: Icons.person_outline,
             label: 'Nom',
             value: _isEditing
                 ? _buildEditableField(_nomController, 'Nom')
-                : _buildStaticField(_currentUser.nom), // ✅ Utilise _buildStaticField
+                : _buildStaticField(_currentUser.nom),
           ),
           const SizedBox(height: 16),
 
-          // Prénom - ✅ CORRIGÉ
           _buildInfoRow(
             icon: Icons.person_outline,
             label: 'Prénom',
             value: _isEditing
                 ? _buildEditableField(_prenomController, 'Prénom')
-                : _buildStaticField(_currentUser.prenom), // ✅ Utilise _buildStaticField
+                : _buildStaticField(_currentUser.prenom),
           ),
           const SizedBox(height: 16),
 
-          // Email - ✅ CORRIGÉ
           _buildInfoRow(
             icon: Icons.email_outlined,
             label: 'Email',
             value: _isEditing
                 ? _buildEditableField(_emailController, 'Email')
-                : _buildStaticField(_currentUser.email), // ✅ Utilise _buildStaticField
+                : _buildStaticField(_currentUser.email),
           ),
           const SizedBox(height: 16),
 
-          // Téléphone - ✅ CORRIGÉ
           _buildInfoRow(
             icon: Icons.phone_outlined,
             label: 'Téléphone',
             value: _isEditing
                 ? _buildEditableField(_telephoneController, 'Téléphone')
-                : _buildStaticField(_currentUser.telephone), // ✅ Utilise _buildStaticField
+                : _buildStaticField(_currentUser.telephone),
           ),
         ],
       ),
@@ -216,7 +355,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildInfoRow({
     required IconData icon,
     required String label,
-    required Widget value, // ✅ Déjà correct - attend un Widget
+    required Widget value,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +379,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 4),
-              value, // ✅ Ici on utilise le Widget directement
+              value,
             ],
           ),
         ),
@@ -288,7 +427,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       children: [
         if (_isEditing) ...[
-          // Boutons Sauvegarder et Annuler en mode édition
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -333,7 +471,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ] else ...[
-          // Bouton Déconnexion en mode visualisation
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -367,14 +504,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _cancelEditing() {
-    _initializeControllers(); // Réinitialiser les valeurs
+    _initializeControllers();
     setState(() {
       _isEditing = false;
     });
   }
 
   void _saveProfile() async {
-    // Validation
     if (_nomController.text.isEmpty ||
         _prenomController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -389,7 +525,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
-      // Vérifier si l'email existe déjà (sauf pour l'utilisateur actuel)
       if (_emailController.text != _currentUser.email) {
         final emailExists = await _databaseHelper.emailExists(_emailController.text);
         if (emailExists) {
@@ -398,15 +533,15 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }
 
-      // Mettre à jour l'utilisateur
       final updatedUser = User(
         id: _currentUser.id,
         nom: _nomController.text.trim(),
         prenom: _prenomController.text.trim(),
         email: _emailController.text.trim(),
         telephone: _telephoneController.text.trim(),
-        password: _currentUser.password, // Garder le même mot de passe
+        password: _currentUser.password,
         dateInscription: _currentUser.dateInscription,
+        imagePath: _currentUser.imagePath, // ✅ Conserver l'image
       );
 
       final result = await _databaseHelper.updateUser(updatedUser);
@@ -476,9 +611,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _logout() async {
-    // Effacer la session
     await SessionManager.logout();
-
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginPage()),
           (route) => false,

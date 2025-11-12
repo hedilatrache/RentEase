@@ -108,7 +108,7 @@ class RenteaseApp extends StatelessWidget {
         // Utiliser Material 3 (plus récent)
         useMaterial3: true,
       ),
-      // ✅ REDIRECTION AUTOMATIQUE SI DÉJÀ CONNECTÉ
+
       // ✅ REDIRECTION AUTOMATIQUE SI DÉJÀ CONNECTÉ
       home: isLoggedIn && currentUser != null
           ? MainScreen(user: currentUser) // ⬅️ UTILISEZ MainScreen AU LIEU DE EntretienListScreen
