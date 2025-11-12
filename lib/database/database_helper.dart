@@ -18,13 +18,12 @@ class DB {
     return _db!;
   }
 
-
   // Initialisation de la DB
   static Future<Database> _initDb() async {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 11 , // Augmenter la version
+      version: 13 , // Augmenter la version
       onCreate: (db, version) async {
         // ✅ NOUVELLE TABLE : Catégorie
         await db.execute('''
@@ -34,6 +33,21 @@ class DB {
         )
       ''');
 
+
+        await db.execute('''
+          CREATE TABLE reservation (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            voiture_id INTEGER NOT NULL,
+            date_debut TEXT NOT NULL,
+            date_fin TEXT NOT NULL,
+            statut TEXT NOT NULL CHECK(statut IN ('pending', 'confirmed', 'cancelled')),
+            prix_total REAL NOT NULL,
+        
+            FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE,
+            FOREIGN KEY(voiture_id) REFERENCES voiture(id) ON DELETE CASCADE
+          )
+        ''');
         // Dans _initDb() - modifiez la table voiture :
         await db.execute('''
   CREATE TABLE voiture(
@@ -88,23 +102,26 @@ class DB {
         ''');
 
         // Table entretien
+        // Dans la méthode _initDb(), modifiez la table entretien :
         await db.execute('''
-          CREATE TABLE entretien(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            voiture_id INTEGER NOT NULL,
-            garage_id INTEGER NOT NULL,
-            type_entretien TEXT NOT NULL,
-            description TEXT,
-            date_entretien TEXT NOT NULL,
-            prochain_entretien TEXT,
-            cout REAL NOT NULL,
-            kilometrage INTEGER,
-            statut TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY (voiture_id) REFERENCES voiture(id) ON DELETE CASCADE,
-            FOREIGN KEY (garage_id) REFERENCES garage(id) ON DELETE CASCADE
-          )
-        ''');
+  CREATE TABLE entretien(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    voiture_id INTEGER NOT NULL,
+    garage_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL, -- ✅ NOUVEAU : ID de l'utilisateur
+    type_entretien TEXT NOT NULL,
+    description TEXT,
+    date_entretien TEXT NOT NULL,
+    prochain_entretien TEXT,
+    cout REAL NOT NULL,
+    kilometrage INTEGER,
+    statut TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (voiture_id) REFERENCES voiture(id) ON DELETE CASCADE,
+    FOREIGN KEY (garage_id) REFERENCES garage(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE -- ✅ NOUVEAU
+  )
+''');
         await db.execute('''
   CREATE TABLE reset_tokens(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -722,6 +739,91 @@ class DB {
   String _generateSocialPassword(String email) {
     return 'social_${email}_${DateTime.now().millisecondsSinceEpoch}';
   }
+
+  // Dans la section GESTION ENTRETIEN, ajoutez :
+
+// ✅ NOUVELLE MÉTHODE : Récupérer les entretiens par utilisateur
+  static Future<List<Entretien>> getEntretiensByUser(int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'entretien',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'date_entretien DESC',
+    );
+    return List.generate(maps.length, (i) {
+      return Entretien.fromMap(maps[i]);
+    });
+  }
+
+// ✅ NOUVELLE MÉTHODE : Récupérer l'historique d'entretien complet avec jointures pour un utilisateur
+  static Future<List<Map<String, dynamic>>> getHistoriqueEntretienByUser(int userId) async {
+    final db = await database;
+    return await db.rawQuery('''
+    SELECT 
+      e.*,
+      v.marque,
+      v.modele,
+      v.immatriculation,
+      g.nom as garage_nom,
+      g.adresse as garage_adresse,
+      u.nom as user_nom,
+      u.prenom as user_prenom
+    FROM entretien e
+    LEFT JOIN voiture v ON e.voiture_id = v.id
+    LEFT JOIN garage g ON e.garage_id = g.id
+    LEFT JOIN users u ON e.user_id = u.id
+    WHERE e.user_id = ?
+    ORDER BY e.date_entretien DESC
+  ''', [userId]);
+  }
+
+// ✅ NOUVELLE MÉTHODE : Récupérer les entretiens d'une voiture pour un utilisateur spécifique
+  static Future<List<Entretien>> getEntretiensByVoitureAndUser(int voitureId, int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'entretien',
+      where: 'voiture_id = ? AND user_id = ?',
+      whereArgs: [voitureId, userId],
+      orderBy: 'date_entretien DESC',
+    );
+    return List.generate(maps.length, (i) {
+      return Entretien.fromMap(maps[i]);
+    });
+  }
+
+// ✅ NOUVELLE MÉTHODE : Récupérer les statistiques d'entretien par utilisateur
+  static Future<Map<String, dynamic>> getStatsEntretienByUser(int userId) async {
+    final db = await database;
+
+    final totalMaps = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM entretien WHERE user_id = ?',
+        [userId]
+    );
+
+    final totalCoutMaps = await db.rawQuery(
+        'SELECT SUM(cout) as total_cout FROM entretien WHERE user_id = ?',
+        [userId]
+    );
+
+    final enCoursMaps = await db.rawQuery(
+        'SELECT COUNT(*) as en_cours FROM entretien WHERE user_id = ? AND statut = "en_cours"',
+        [userId]
+    );
+
+    final terminesMaps = await db.rawQuery(
+        'SELECT COUNT(*) as termines FROM entretien WHERE user_id = ? AND statut = "terminé"',
+        [userId]
+    );
+
+    return {
+      'total': totalMaps.first['total'] as int,
+      'total_cout': (totalCoutMaps.first['total_cout'] as num?)?.toDouble() ?? 0.0,
+      'en_cours': enCoursMaps.first['en_cours'] as int,
+      'termines': terminesMaps.first['termines'] as int,
+    };
+  }
+
 
 }
 
