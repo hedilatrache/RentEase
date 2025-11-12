@@ -542,6 +542,7 @@ class _ProfilePageState extends State<ProfilePage> {
         password: _currentUser.password,
         dateInscription: _currentUser.dateInscription,
         imagePath: _currentUser.imagePath, // ✅ Conserver l'image
+        role: _currentUser.role
       );
 
       final result = await _databaseHelper.updateUser(updatedUser);

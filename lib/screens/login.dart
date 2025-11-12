@@ -71,6 +71,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 60),
 
+
                 // Email Field
                 _buildEmailField(),
 
@@ -312,6 +313,7 @@ class _LoginPageState extends State<LoginPage> {
       rememberMe: true, // Toujours se souvenir pour les connexions sociales
       userId: user.id!,
       userEmail: user.email,
+      userRole: user.role,
     );
 
     _showSuccessSnackbar('Succès', 'Bienvenue ${user.prenom} via $platform!');
@@ -600,6 +602,8 @@ class _LoginPageState extends State<LoginPage> {
           rememberMe: _rememberMe,
           userId: user.id!,
           userEmail: user.email,
+          userRole: user.role,
+
         );
 
         _showSuccessSnackbar('Success', 'Welcome back, ${user.prenom}!');
@@ -660,4 +664,8 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     super.dispose();
   }
+
+
+
+
 }

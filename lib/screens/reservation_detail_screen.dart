@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:rentease/services/session_manager.dart';
 import '../models/reservation.dart';
 import '../services/reservation_service.dart';
 import '../models/voiture.dart';
@@ -29,6 +30,7 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   Voiture? _voiture;
   bool _isLoading = true;
   bool _isCancelling = false;
+  bool _isDeleting = false;
 
   // ✅ CHARTE GRAPHIQUE
   final Color violet = const Color(0xFF7201FE);
@@ -45,11 +47,8 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   Future<void> _loadReservationDetails() async {
     try {
       // Charger la réservation
-      final reservations = await _reservationService.getReservationsByUserId(widget.userId);
-      _reservation = reservations.firstWhere(
-            (r) => r.id == widget.reservationId,
-        orElse: () => throw Exception('Réservation non trouvée'),
-      );
+      _reservation = await _reservationService.getReservationById(widget.reservationId);
+
 
       // Charger les détails de la voiture directement depuis la DB
       _voiture = await DB().getVoitureById(_reservation!.voitureId);
@@ -87,10 +86,11 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   }
 
   List<Widget>? _buildAppBarActions() {
+
     if (_isLoading || _reservation == null) return null;
 
     // Afficher les actions seulement si la réservation est en attente ou confirmée
-    if (_reservation!.statut == StatutRes.pending || _reservation!.statut == StatutRes.confirmed) {
+    if (_reservation!.statut == StatutRes.pending) {
       return [
         IconButton(
           icon: const Icon(Icons.edit),
@@ -156,11 +156,16 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
 
           // Actions
           if (_reservation!.statut == StatutRes.pending || _reservation!.statut == StatutRes.confirmed)
-            _buildActionButtons(),
+              _buildActionButtons(),
+
+
+
+          _buildDeleteButton(),
         ],
       ),
     );
   }
+
 
   Widget _buildStatusHeader() {
     Color statusColor;
@@ -389,6 +394,7 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   Widget _buildActionButtons() {
     return Column(
       children: [
+        // Bouton Annuler - visible pour pending ET confirmed
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -416,28 +422,32 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: OutlinedButton(
-            onPressed: _navigateToEditScreen,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: violet,
-              side: BorderSide(color: violet),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+
+        // Bouton Modifier - visible SEULEMENT pour les réservations en attente
+        if (_reservation!.statut == StatutRes.pending) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              onPressed: _navigateToEditScreen,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: violet,
+                side: BorderSide(color: violet),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-            ),
-            child: Text(
-              'Modifier les dates',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                'Modifier la réservation',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -557,6 +567,149 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(
+              'Supprimer la réservation',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Êtes-vous sûr de vouloir supprimer définitivement cette réservation ?',
+              style: GoogleFonts.inter(),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[100]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Cette action est irréversible et ne peut pas être annulée.',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.red[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Annuler',
+              style: GoogleFonts.inter(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteReservation();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              'Supprimer',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  Future<void> _deleteReservation() async {
+    setState(() => _isDeleting = true);
+
+    try {
+      await _reservationService.deleteReservation(widget.reservationId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Réservation supprimée avec succès',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate back to previous screen
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+        _showErrorDialog('Erreur lors de la suppression: $e');
+      }
+    }
+  }
+  Widget _buildDeleteButton() {
+    return Column(
+      children: [
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isDeleting ? null : _showDeleteConfirmation,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isDeleting
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+                : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.delete, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Supprimer définitivement',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

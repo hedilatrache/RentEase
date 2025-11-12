@@ -2,11 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:rentease/services/session_manager.dart';
 import '../database/database_helper.dart';
 import '../models/voiture.dart';
 import 'ajout_voiture_screen.dart';
 import 'voiture_detail_screen1.dart';
-import 'mes_voitures_screen.dart'; // ✅ IMPORT DU NOUVEL ÉCRAN
+import 'mes_voitures_screen.dart';
 
 class VoitureListScreen extends StatefulWidget {
   final int userId;
@@ -21,6 +22,7 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
   final DB _databaseHelper = DB();
   List<Voiture> _voitures = [];
   bool _isLoading = true;
+  bool _isCarOwner = false;
 
   // ✅ CHARTE GRAPHIQUE DE RENTEASE
   final Color violet = const Color(0xFF7201FE);
@@ -31,7 +33,20 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadVoitures();
+    _checkUserRoleAndLoadVoitures();
+  }
+
+  Future<void> _checkUserRoleAndLoadVoitures() async {
+    try {
+      // Check if user is car owner
+      _isCarOwner = await SessionManager.isUserCarsOwner();
+      await _loadVoitures();
+    } catch (e) {
+      print('Erreur chargement voitures: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadVoitures() async {
@@ -63,7 +78,7 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : NAVIGATION VERS MES VÉHICULES
+  // ✅ NAVIGATION VERS MES VÉHICULES
   void _navigateToMesVoitures() {
     Navigator.push(
       context,
@@ -97,32 +112,38 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          // ✅ BOUTON MES VÉHICULES EN FLOATING ACTION BUTTON AUSSI
-          FloatingActionButton(
-            onPressed: _navigateToMesVoitures,
-            backgroundColor: jaune,
-            foregroundColor: violet,
-            elevation: 4,
-            mini: true,
-            heroTag: "mes_voitures", // Important pour éviter les conflits
-            child: const Icon(Icons.directions_car, size: 20),
-          ),
-          const SizedBox(height: 16),
-          // BOUTON AJOUTER EXISTANT
-          FloatingActionButton(
-            onPressed: _navigateToAjoutVoiture,
-            backgroundColor: violet,
-            foregroundColor: jaune,
-            elevation: 4,
-            heroTag: "ajouter_voiture", // Important pour éviter les conflits
-            child: const Icon(Icons.add, size: 28),
-          ),
-        ],
-      ),
+      // ✅ FLOATING ACTION BUTTONS - SEULEMENT POUR LES CAR OWNERS
+      floatingActionButton: _isCarOwner ? _buildFloatingActionButtons() : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  // ✅ CONSTRUIRE LES FLOATING ACTION BUTTONS
+  Widget _buildFloatingActionButtons() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // BOUTON MES VÉHICULES
+        FloatingActionButton(
+          onPressed: _navigateToMesVoitures,
+          backgroundColor: jaune,
+          foregroundColor: violet,
+          elevation: 4,
+          mini: true,
+          heroTag: "mes_voitures",
+          child: const Icon(Icons.directions_car, size: 20),
+        ),
+        const SizedBox(height: 16),
+        // BOUTON AJOUTER
+        FloatingActionButton(
+          onPressed: _navigateToAjoutVoiture,
+          backgroundColor: violet,
+          foregroundColor: jaune,
+          elevation: 4,
+          heroTag: "ajouter_voiture",
+          child: const Icon(Icons.add, size: 28),
+        ),
+      ],
     );
   }
 
@@ -150,8 +171,8 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
             _buildHeader(),
             const SizedBox(height: 16),
 
-            // ✅ BOUTON MES VÉHICULES DANS LE CORPS
-            _buildMesVoituresButton(),
+            // ✅ BOUTON MES VÉHICULES DANS LE CORPS - SEULEMENT POUR LES CAR OWNERS
+            if (_isCarOwner) _buildMesVoituresButton(),
 
             const SizedBox(height: 16),
 
@@ -165,7 +186,7 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
     );
   }
 
-  // ✅ NOUVELLE MÉTHODE : BOUTON MES VÉHICULES DANS LE CORPS
+  // ✅ BOUTON MES VÉHICULES DANS LE CORPS
   Widget _buildMesVoituresButton() {
     return Container(
       width: double.infinity,
@@ -203,7 +224,7 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Découvrez notre flotte',
+          'Découvrez nos Voitures',
           style: GoogleFonts.inter(
             fontSize: 24,
             fontWeight: FontWeight.w700,
@@ -252,63 +273,65 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ✅ BOUTON MES VÉHICULES DANS L'ÉTAT VIDE
-          ElevatedButton(
-            onPressed: _navigateToMesVoitures,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: jaune,
-              foregroundColor: violet,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.directions_car, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Mes véhicules',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w700,
+          // ✅ BOUTONS SEULEMENT POUR LES CAR OWNERS DANS L'ÉTAT VIDE
+          if (_isCarOwner) ...[
+            ElevatedButton(
+              onPressed: _navigateToMesVoitures,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: jaune,
+                foregroundColor: violet,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.directions_car, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Mes véhicules',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _navigateToAjoutVoiture,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: violet,
+                foregroundColor: jaune,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ajouter une voiture',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
+          // BOUTON ACTUALISER POUR TOUS LES UTILISATEURS
           ElevatedButton(
             onPressed: _loadVoitures,
             style: ElevatedButton.styleFrom(
-              backgroundColor: violet,
-              foregroundColor: jaune,
+              backgroundColor: _isCarOwner ? grisClair : violet,
+              foregroundColor: _isCarOwner ? Colors.grey[600] : jaune,
             ),
             child: Text(
               'Actualiser',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          ElevatedButton(
-            onPressed: _navigateToAjoutVoiture,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: jaune,
-              foregroundColor: violet,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Ajouter une voiture',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -339,7 +362,7 @@ class _VoitureListScreenState extends State<VoitureListScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => VoitureDetailScreen(voiture: voiture,userId: widget.userId ),
+            builder: (context) => VoitureDetailScreen(voiture: voiture, userId: widget.userId),
           ),
         );
       },
