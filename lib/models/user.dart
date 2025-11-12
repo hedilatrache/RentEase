@@ -6,6 +6,7 @@ class User {
   String telephone;
   String password;
   DateTime dateInscription;
+  String? imagePath; // ✅ Ajout du champ image
 
   User({
     this.id,
@@ -15,6 +16,7 @@ class User {
     required this.telephone,
     required this.password,
     required this.dateInscription,
+    this.imagePath, // ✅ Nouveau champ
   });
 
   // Convertir un User en Map pour la base de données
@@ -27,6 +29,7 @@ class User {
       'telephone': telephone,
       'password': password,
       'date_inscription': dateInscription.toIso8601String(),
+      'image_path': imagePath, // ✅ Ajout dans la map
     };
   }
 
@@ -40,14 +43,15 @@ class User {
       telephone: map['telephone'],
       password: map['password'],
       dateInscription: DateTime.parse(map['date_inscription']),
+      imagePath: map['image_path'], // ✅ Récupération de l'image
     );
   }
 
   @override
   String toString() {
-    return 'User{id: $id, nom: $nom, prenom: $prenom, email: $email, telephone: $telephone, dateInscription: $dateInscription}';
+    return 'User{id: $id, nom: $nom, prenom: $prenom, email: $email, telephone: $telephone, dateInscription: $dateInscription, imagePath: $imagePath}';
   }
-  // Ajoutez cette méthode
+
   User copyWith({
     int? id,
     String? nom,
@@ -56,6 +60,7 @@ class User {
     String? telephone,
     String? password,
     DateTime? dateInscription,
+    String? imagePath, // ✅ Ajout dans copyWith
   }) {
     return User(
       id: id ?? this.id,
@@ -65,6 +70,7 @@ class User {
       telephone: telephone ?? this.telephone,
       password: password ?? this.password,
       dateInscription: dateInscription ?? this.dateInscription,
+      imagePath: imagePath ?? this.imagePath, // ✅ Copie de l'image
     );
   }
 }
