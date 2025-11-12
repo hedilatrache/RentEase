@@ -1,10 +1,12 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import '../models/categorie.dart';
 import '../models/entretien.dart';
 import '../models/garage.dart';
 import '../models/reset_token.dart';
 import '../models/user.dart';
+import '../models/voiture.dart';
 
 class DB {
   static Database? _db;
@@ -22,22 +24,40 @@ class DB {
     String path = join(await getDatabasesPath(), 'rentease.db');
     return await openDatabase(
       path,
-      version: 9 , // Augmenter la version
+      version: 11 , // Augmenter la version
       onCreate: (db, version) async {
-        // Table voiture
+        // ✅ NOUVELLE TABLE : Catégorie
         await db.execute('''
-          CREATE TABLE voiture(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            marque TEXT,
-            modele TEXT,
-            annee INTEGER,
-            immatriculation TEXT,
-            couleur TEXT,
-            prixParJour REAL,
-            disponibilite INTEGER,
-            image TEXT
-          )
-        ''');
+        CREATE TABLE categorie(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nom TEXT NOT NULL
+        )
+      ''');
+
+        // Dans _initDb() - modifiez la table voiture :
+        await db.execute('''
+  CREATE TABLE voiture(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    marque TEXT NOT NULL,
+    modele TEXT NOT NULL,
+    annee INTEGER NOT NULL,
+    immatriculation TEXT NOT NULL,
+    couleur TEXT NOT NULL,
+    prixParJour REAL NOT NULL,
+    disponibilite INTEGER NOT NULL,
+    categorieId INTEGER NOT NULL,
+    image TEXT,
+    user_id INTEGER, -- ✅ NOUVEAU : ID du propriétaire
+    FOREIGN KEY (categorieId) REFERENCES categorie(id),
+    FOREIGN KEY (user_id) REFERENCES users(id) -- ✅ Lien vers la table users
+  )
+''');
+        // ✅ INSÉRER DES CATÉGORIES PAR DÉFAUT
+        await db.insert('categorie', {'nom': 'Économique'});
+        await db.insert('categorie', {'nom': 'Compacte'});
+        await db.insert('categorie', {'nom': 'SUV'});
+        await db.insert('categorie', {'nom': 'Luxe'});
+        await db.insert('categorie', {'nom': 'Sport'});
 
         // Table users
         await db.execute('''
@@ -404,31 +424,210 @@ class DB {
 
 
   //GESTION VOITURE
-
-
-  // Ajouter une voiture
-  static Future<void> addVoiture(Map<String, dynamic> voiture) async {
+// ✅ CORRIGÉ : Ajouter une voiture avec l'entité Voiture
+  Future<int> addVoiture(Voiture voiture) async {
     final db = await database;
-    await db.insert('voiture', voiture);
+    return await db.insert('voiture', voiture.toMap());
   }
 
-  // Récupérer toutes les voitures
-  static Future<List<Map<String, dynamic>>> getVoitures() async {
+// ✅ CORRIGÉ : Récupérer toutes les voitures avec jointure sur catégorie
+  Future<List<Voiture>> getVoitures() async {
     final db = await database;
-    return await db.query('voiture');
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    SELECT 
+      v.*,
+      c.nom as catNom
+    FROM voiture v
+    LEFT JOIN categorie c ON v.categorieId = c.id
+  ''');
+
+    return List.generate(maps.length, (i) {
+      return Voiture.fromMap(maps[i]);
+    });
   }
 
-  // Supprimer une voiture
-  static Future<void> deleteVoiture(int id) async {
+// ✅ CORRIGÉ : Récupérer une voiture par ID
+  Future<Voiture?> getVoitureById(int id) async {
     final db = await database;
-    await db.delete('voiture', where: 'id = ?', whereArgs: [id]);
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    SELECT 
+      v.*,
+      c.nom as catNom
+    FROM voiture v
+    LEFT JOIN categorie c ON v.categorieId = c.id
+    WHERE v.id = ?
+  ''', [id]);
+
+    if (maps.isNotEmpty) {
+      return Voiture.fromMap(maps.first);
+    }
+    return null;
   }
 
-  // Mettre à jour une voiture
-  static Future<void> editVoiture(int id, Map<String, dynamic> voiture) async {
+// ✅ CORRIGÉ : Mettre à jour une voiture
+  Future<int> updateVoiture(Voiture voiture) async {
     final db = await database;
-    await db.update('voiture', voiture, where: 'id = ?', whereArgs: [id]);
+    return await db.update(
+      'voiture',
+      voiture.toMap(),
+      where: 'id = ?',
+      whereArgs: [voiture.id],
+    );
   }
+
+// ✅ CORRIGÉ : Supprimer une voiture
+  Future<int> deleteVoiture(int id) async {
+    final db = await database;
+    return await db.delete(
+      'voiture',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+// ✅ NOUVELLE MÉTHODE : Récupérer toutes les catégories
+  Future<List<Categorie>> getCategories() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('categorie');
+    return List.generate(maps.length, (i) {
+      return Categorie.fromMap(maps[i]);
+    });
+  }
+
+// ✅ NOUVELLE MÉTHODE : Récupérer une catégorie par ID
+  Future<Categorie?> getCategorieById(int id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'categorie',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) {
+      return Categorie.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  // ✅ Récupérer toutes les voitures d'un utilisateur spécifique
+  Future<List<Voiture>> getVoituresByUser(int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    SELECT 
+      v.*,
+      c.nom as catNom
+    FROM voiture v
+    LEFT JOIN categorie c ON v.categorieId = c.id
+    WHERE v.user_id = ?
+    ORDER BY v.id DESC
+  ''', [userId]);
+
+    return List.generate(maps.length, (i) {
+      return Voiture.fromMap(maps[i]);
+    });
+  }
+
+// ✅ Récupérer les voitures disponibles d'un utilisateur spécifique
+  Future<List<Voiture>> getVoituresDisponiblesByUser(int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    SELECT 
+      v.*,
+      c.nom as catNom
+    FROM voiture v
+    LEFT JOIN categorie c ON v.categorieId = c.id
+    WHERE v.user_id = ? AND v.disponibilite = 1
+    ORDER BY v.id DESC
+  ''', [userId]);
+
+    return List.generate(maps.length, (i) {
+      return Voiture.fromMap(maps[i]);
+    });
+  }
+
+// ✅ Récupérer le nombre de voitures d'un utilisateur
+  Future<int> getCountVoituresByUser(int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM voiture WHERE user_id = ?',
+        [userId]
+    );
+
+    return maps.first['count'] as int;
+  }
+
+// ✅ Vérifier si l'utilisateur est propriétaire d'une voiture
+  Future<bool> isUserOwnerOfVoiture(int voitureId, int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'voiture',
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [voitureId, userId],
+    );
+    return maps.isNotEmpty;
+  }
+
+// ✅ Mettre à jour une voiture avec vérification de propriété
+  Future<int> updateVoitureWithOwnerCheck(Voiture voiture, int userId) async {
+    final db = await database;
+
+    // Vérifier d'abord si l'utilisateur est propriétaire
+    final isOwner = await isUserOwnerOfVoiture(voiture.id!, userId);
+    if (!isOwner) {
+      throw Exception('Vous n\'êtes pas propriétaire de cette voiture');
+    }
+
+    return await db.update(
+      'voiture',
+      voiture.toMap(),
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [voiture.id, userId],
+    );
+  }
+
+// ✅ Supprimer une voiture avec vérification de propriété
+  Future<int> deleteVoitureWithOwnerCheck(int voitureId, int userId) async {
+    final db = await database;
+
+    // Vérifier d'abord si l'utilisateur est propriétaire
+    final isOwner = await isUserOwnerOfVoiture(voitureId, userId);
+    if (!isOwner) {
+      throw Exception('Vous n\'êtes pas propriétaire de cette voiture');
+    }
+
+    return await db.delete(
+      'voiture',
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [voitureId, userId],
+    );
+  }
+
+// ✅ Récupérer les statistiques des voitures d'un utilisateur
+  Future<Map<String, dynamic>> getStatsVoituresByUser(int userId) async {
+    final db = await database;
+
+    final totalMaps = await db.rawQuery(
+        'SELECT COUNT(*) as total FROM voiture WHERE user_id = ?',
+        [userId]
+    );
+
+    final disponiblesMaps = await db.rawQuery(
+        'SELECT COUNT(*) as disponibles FROM voiture WHERE user_id = ? AND disponibilite = 1',
+        [userId]
+    );
+
+    final revenuMaps = await db.rawQuery(
+        'SELECT SUM(prixParJour) as revenu_potentiel FROM voiture WHERE user_id = ? AND disponibilite = 1',
+        [userId]
+    );
+
+    return {
+      'total': totalMaps.first['total'] as int,
+      'disponibles': disponiblesMaps.first['disponibles'] as int,
+      'revenu_potentiel': (revenuMaps.first['revenu_potentiel'] as num?)?.toDouble() ?? 0.0,
+    };
+  }
+
+
   //ENDGESTION VOITURE
 
 
@@ -494,5 +693,37 @@ class DB {
     );
   }
 
+  // Dans database_helper.dart - CORRIGEZ la méthode findOrCreateUser
+  Future<User?> findOrCreateUser(String email, String nom, String prenom) async {
+    final db = await database;
+
+    // Vérifier si l'utilisateur existe déjà
+    final existingUser = await getUserByEmail(email);
+
+    if (existingUser != null) {
+      return existingUser;
+    } else {
+      // Créer un nouvel utilisateur
+      final newUser = User(
+        nom: nom,
+        prenom: prenom,
+        email: email,
+        telephone: '', // Pas de téléphone pour les connexions sociales
+        password: _generateSocialPassword(email), // Générer un mot de passe unique
+        dateInscription: DateTime.now(),
+      );
+
+      final userId = await insertUser(newUser);
+      return newUser.copyWith(id: userId);
+    }
+  }
+
+// Méthode pour générer un mot de passe pour les utilisateurs sociaux
+  String _generateSocialPassword(String email) {
+    return 'social_${email}_${DateTime.now().millisecondsSinceEpoch}';
+  }
 
 }
+
+
+

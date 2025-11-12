@@ -26,7 +26,7 @@ class _VoitureEditScreenState extends State<VoitureEditScreen> {
   Categorie? selectedCategorie;
   List<Categorie> categories = [];
 
-  // Liste d'images prédéfinies (assets ou URLs)
+  // Liste d'images prédéfinies (Assets ou URLs)
   Map<String, String> imagesMap = {
     'Voiture 1':   'Assets/image1.png',
     'Voiture 2':   'Assets/image2.png',
